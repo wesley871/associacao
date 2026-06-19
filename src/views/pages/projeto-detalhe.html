@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title><%= projeto.nome %></title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/familias.css">
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="families-page">
+        <header class="families-header">
+            <div>
+                <h1><%= projeto.nome %></h1>
+                <p>
+                    <%= projeto.inicio %>
+                    <% if (projeto.fim) { %>
+                        até <%= projeto.fim %>
+                    <% } %>
+                </p>
+            </div>
+            <div class="header-actions">
+                <a class="header-link" href="/projetos">Voltar</a>
+                <a class="primary-link" href="/projetos/<%= projeto.id %>/editar">Editar projeto</a>
+                <% if (projeto.ativo) { %>
+                    <form action="/projetos/<%= projeto.id %>/excluir" method="post">
+                        <button type="submit" class="danger-button">Excluir projeto</button>
+                    </form>
+                <% } %>
+            </div>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <section class="families-panel">
+            <div class="project-summary">
+                <div>
+                    <span>Status</span>
+                    <% if (projeto.ativo) { %>
+                        <strong>Ativo</strong>
+                    <% } else { %>
+                        <strong>Inativo</strong>
+                    <% } %>
+                </div>
+                <div>
+                    <span>Participantes ativos</span>
+                    <strong><%= projeto.participantes.filter((participante) => participante.ativo).length %></strong>
+                </div>
+            </div>
+
+            <% if (projeto.descricao) { %>
+                <p class="project-description"><%= projeto.descricao %></p>
+            <% } %>
+        </section>
+
+        <% if (projeto.ativo) { %>
+            <section class="families-panel">
+                <h2>Adicionar participante</h2>
+
+                <form class="search-form" action="/projetos/<%= projeto.id %>/participantes" method="post">
+                    <label for="cpf">CPF da pessoa cadastrada</label>
+                    <div class="search-row">
+                        <input type="text" name="cpf" id="cpf" inputmode="numeric" required>
+                        <input type="date" name="inicio" value="<%= new Date().toISOString().slice(0, 10) %>">
+                        <button type="submit">Adicionar</button>
+                    </div>
+                </form>
+            </section>
+        <% } %>
+
+        <section class="families-panel">
+            <h2>Participantes</h2>
+
+            <div class="families-table-wrapper">
+                <table class="families-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CPF</th>
+                            <th>Família</th>
+                            <th>Início</th>
+                            <th>Fim</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (projeto.participantes.length === 0) { %>
+                            <tr>
+                                <td colspan="7">Nenhum participante vinculado.</td>
+                            </tr>
+                        <% } %>
+
+                        <% projeto.participantes.forEach((participante) => { %>
+                            <tr>
+                                <td><%= participante.nome %></td>
+                                <td><%= participante.cpf %></td>
+                                <td><%= participante.codigoFamiliar %></td>
+                                <td><%= participante.inicio %></td>
+                                <td><%= participante.fim ?? '-' %></td>
+                                <td>
+                                    <% if (participante.ativo) { %>
+                                        <span class="person-badge">Ativo</span>
+                                    <% } else { %>
+                                        <span class="person-badge person-badge-muted">Inativo</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if (participante.ativo && projeto.ativo) { %>
+                                        <form action="/projetos/<%= projeto.id %>/participantes/<%= participante.id %>/remover" method="post">
+                                            <button type="submit" class="danger-button">Remover</button>
+                                        </form>
+                                    <% } else { %>
+                                        -
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

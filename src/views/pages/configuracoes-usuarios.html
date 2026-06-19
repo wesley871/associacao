@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Configurações de Usuários</title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/configuracoes.css">
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="settings-page">
+        <header class="settings-header">
+            <div>
+                <h1>Configurações</h1>
+                <p>Gerencie os usuários que acessam o sistema.</p>
+            </div>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <section class="settings-grid">
+            <article class="settings-panel">
+                <h2><%= editUser ? 'Editar usuário' : 'Novo usuário' %></h2>
+
+                <form
+                    class="settings-form"
+                    action="<%= editUser ? `/configuracoes/usuarios/${editUser.uuid}/editar` : '/configuracoes/usuarios' %>"
+                    method="post"
+                >
+                    <label for="login">Login</label>
+                    <input
+                        type="text"
+                        name="login"
+                        id="login"
+                        value="<%= editUser ? editUser.login : '' %>"
+                        autocomplete="username"
+                        required
+                    >
+
+                    <label for="password">
+                        <%= editUser ? 'Nova senha' : 'Senha' %>
+                    </label>
+                    <input
+                        type="password"
+                        name="password"
+                        id="password"
+                        autocomplete="new-password"
+                        <%= editUser ? '' : 'required' %>
+                    >
+
+                    <% if (editUser) { %>
+                        <p class="field-hint">Deixe a senha em branco para manter a atual.</p>
+                    <% } %>
+
+                    <div class="form-actions">
+                        <button type="submit"><%= editUser ? 'Salvar alterações' : 'Cadastrar usuário' %></button>
+                        <% if (editUser) { %>
+                            <a href="/configuracoes/usuarios">Cancelar</a>
+                        <% } %>
+                    </div>
+                </form>
+            </article>
+
+            <article class="settings-panel users-panel">
+                <h2>Usuários cadastrados</h2>
+
+                <div class="users-table-wrapper">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>Login</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% users.forEach((user) => { %>
+                                <tr>
+                                    <td><%= user.login %></td>
+                                    <td>
+                                        <% if (currentUser.uuid === user.uuid) { %>
+                                            <span class="user-badge">Você</span>
+                                        <% } else { %>
+                                            <span class="user-badge user-badge-muted">Ativo</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <div class="table-actions">
+                                            <a href="/configuracoes/usuarios?edit=<%= user.uuid %>">Editar</a>
+                                            <form action="/configuracoes/usuarios/<%= user.uuid %>/excluir" method="post">
+                                                <button type="submit">Apagar</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Cadastrar Família</title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/cadastrar-familia.css">
+    <script src="/js/cadastrar-familia.js" defer></script>
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="family-page">
+        <header class="family-header">
+            <div>
+                <h1>Cadastrar família</h1>
+                <p>Preencha os dados do cadastro familiar, endereço e componentes da família.</p>
+            </div>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <form class="family-form" action="/cadastrar" method="post">
+            <section class="family-panel">
+                <h2>Dados da família</h2>
+
+                <div class="form-grid form-grid-two">
+                    <label>
+                        <span>Código familiar</span>
+                        <input type="text" name="codigoFamiliar" value="<%= cadastro?.codigoFamiliar ?? '' %>" required>
+                    </label>
+
+                    <label>
+                        <span>Data da entrevista</span>
+                        <input type="date" name="dataEntrevista" value="<%= cadastro?.dataEntrevista ?? '' %>" required>
+                    </label>
+
+                    <label>
+                        <span>Folha resumo</span>
+                        <input type="date" name="folhaResumo" value="<%= cadastro?.folhaResumo ?? '' %>" required>
+                    </label>
+
+                    <label>
+                        <span>Telefone do responsável</span>
+                        <input type="tel" name="telefoneResponsavel" value="<%= cadastro?.telefoneResponsavel ?? '' %>" inputmode="tel" required>
+                    </label>
+                </div>
+            </section>
+
+            <section class="family-panel">
+                <div class="panel-title-row">
+                    <h2>Endereço</h2>
+                    <span class="cep-status" data-cep-status></span>
+                </div>
+
+                <div class="form-grid form-grid-three">
+                    <label>
+                        <span>CEP</span>
+                        <input type="text" name="cep" id="cep" value="<%= cadastro?.endereco?.cep ?? '' %>" inputmode="numeric" autocomplete="postal-code">
+                    </label>
+
+                    <label>
+                        <span>Tipo</span>
+                        <input type="text" name="tipo" id="tipo" value="<%= cadastro?.endereco?.tipo ?? '' %>" placeholder="Rua, Avenida...">
+                    </label>
+
+                    <label>
+                        <span>Nome</span>
+                        <input type="text" name="nome" id="nome" value="<%= cadastro?.endereco?.nome ?? '' %>" placeholder="Nome do logradouro">
+                    </label>
+
+                    <label class="field-wide">
+                        <span>Logradouro</span>
+                        <input type="text" name="logradouro" id="logradouro" value="<%= cadastro?.endereco?.logradouro ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Número</span>
+                        <input type="text" name="numero" value="<%= cadastro?.endereco?.numero ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Complemento</span>
+                        <input type="text" name="complemento" id="complemento" value="<%= cadastro?.endereco?.complemento ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Unidade</span>
+                        <input type="text" name="unidade" id="unidade" value="<%= cadastro?.endereco?.unidade ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Bairro</span>
+                        <input type="text" name="bairro" id="bairro" value="<%= cadastro?.endereco?.bairro ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Localidade</span>
+                        <input type="text" name="localidade" id="localidade" value="<%= cadastro?.endereco?.localidade ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>UF</span>
+                        <input type="text" name="uf" id="uf" value="<%= cadastro?.endereco?.uf ?? '' %>" maxlength="2">
+                    </label>
+
+                    <label>
+                        <span>Estado</span>
+                        <input type="text" name="estado" id="estado" value="<%= cadastro?.endereco?.estado ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Região</span>
+                        <input type="text" name="regiao" id="regiao" value="<%= cadastro?.endereco?.regiao ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>IBGE</span>
+                        <input type="text" name="ibge" id="ibge" value="<%= cadastro?.endereco?.ibge ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>GIA</span>
+                        <input type="text" name="gia" id="gia" value="<%= cadastro?.endereco?.gia ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>DDD</span>
+                        <input type="text" name="ddd" id="ddd" value="<%= cadastro?.endereco?.ddd ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>SIAFI</span>
+                        <input type="text" name="siafi" id="siafi" value="<%= cadastro?.endereco?.siafi ?? '' %>">
+                    </label>
+
+                    <label class="field-wide">
+                        <span>Referência para localização</span>
+                        <input type="text" name="referencia" value="<%= cadastro?.endereco?.referencia ?? '' %>">
+                    </label>
+                </div>
+            </section>
+
+            <section class="family-panel">
+                <div class="panel-title-row">
+                    <h2>Componentes da família</h2>
+                    <button type="button" class="secondary-button" data-add-family-member>Adicionar familiar</button>
+                </div>
+
+                <div class="family-members" data-family-members>
+                    <% const temFamiliares = Boolean(cadastro?.familiares?.length); %>
+                    <% const familiares = temFamiliares ? cadastro.familiares : [{}]; %>
+                    <% familiares.forEach((familiar, index) => { %>
+                    <article class="family-member" data-family-member>
+                        <div class="member-title-row">
+                            <h3>Familiar <%= index + 1 %></h3>
+                            <% if (index === 0) { %>
+                                <span class="responsavel-badge">Responsável familiar</span>
+                                <input type="hidden" name="responsavelFamiliar" value="0">
+                                <input type="hidden" name="familiarParentesco" value="">
+                            <% } %>
+                            <% if (index > 0) { %>
+                                <button type="button" class="remove-member-button" data-remove-family-member>Remover</button>
+                            <% } %>
+                        </div>
+
+                        <div class="form-grid form-grid-four">
+                            <label class="field-wide">
+                                <span>Nome completo</span>
+                                <input type="text" name="familiarNome" value="<%= familiar.nomeCompleto ?? '' %>" required>
+                            </label>
+
+                            <label>
+                                <span>CPF</span>
+                                <input type="text" name="familiarCpf" value="<%= familiar.cpf ?? '' %>" inputmode="numeric">
+                            </label>
+
+                            <label>
+                                <span>Nascimento</span>
+                                <input type="date" name="familiarNascimento" value="<%= familiar.nascimento ?? '' %>">
+                            </label>
+
+                            <% if (index > 0) { %>
+                            <label>
+                                <span>Parentesco</span>
+                                <select name="familiarParentesco" required>
+                                    <option value="">Selecione</option>
+                                    <option value="Filho(a)" <%= familiar.parentesco === 'Filho(a)' ? 'selected' : '' %>>Filho(a)</option>
+                                    <option value="Cônjuge ou companheiro(a)" <%= familiar.parentesco === 'Cônjuge ou companheiro(a)' ? 'selected' : '' %>>Cônjuge ou companheiro(a)</option>
+                                    <option value="Outros dependentes" <%= familiar.parentesco === 'Outros dependentes' ? 'selected' : '' %>>Outros dependentes</option>
+                                </select>
+                            </label>
+                            <% } %>
+                        </div>
+                    </article>
+                    <% }) %>
+                </div>
+            </section>
+
+            <div class="family-actions">
+                <button type="submit">Salvar cadastro</button>
+            </div>
+        </form>
+
+        <% if (cadastro) { %>
+            <section class="family-panel result-panel">
+                <h2>Dados recebidos</h2>
+                <pre><%= JSON.stringify(cadastro, null, 2) %></pre>
+            </section>
+        <% } %>
+    </main>
+</body>
+</html>

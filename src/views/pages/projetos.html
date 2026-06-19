@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Projetos</title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/familias.css">
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="families-page">
+        <header class="families-header">
+            <div>
+                <h1>Projetos</h1>
+                <p>Consulte, cadastre e gerencie projetos da associação.</p>
+            </div>
+            <a class="primary-link" href="/projetos/novo">Novo projeto</a>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <section class="families-panel">
+            <form class="search-form" action="/projetos" method="get">
+                <label for="busca">Nome do projeto</label>
+                <div class="search-row">
+                    <input type="search" name="busca" id="busca" value="<%= search %>" placeholder="Digite o nome do projeto">
+                    <button type="submit">Buscar</button>
+                    <% if (search) { %>
+                        <a href="/projetos">Limpar</a>
+                    <% } %>
+                </div>
+            </form>
+        </section>
+
+        <section class="families-panel">
+            <h2>Projetos cadastrados</h2>
+
+            <div class="families-table-wrapper">
+                <table class="families-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Início</th>
+                            <th>Fim</th>
+                            <th>Status</th>
+                            <th>Participantes</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (projetos.length === 0) { %>
+                            <tr>
+                                <td colspan="6">Nenhum projeto encontrado.</td>
+                            </tr>
+                        <% } %>
+
+                        <% projetos.forEach((projeto) => { %>
+                            <tr>
+                                <td><%= projeto.nome %></td>
+                                <td><%= projeto.inicio %></td>
+                                <td><%= projeto.fim ?? '-' %></td>
+                                <td>
+                                    <% if (projeto.ativo) { %>
+                                        <span class="person-badge">Ativo</span>
+                                    <% } else { %>
+                                        <span class="person-badge person-badge-muted">Inativo</span>
+                                    <% } %>
+                                </td>
+                                <td><%= projeto.participantesAtivos ?? 0 %>/<%= projeto.totalParticipantes %></td>
+                                <td>
+                                    <a class="table-link" href="/projetos/<%= projeto.id %>">Abrir</a>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

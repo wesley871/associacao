@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Consultar Famílias</title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/familias.css">
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="families-page">
+        <header class="families-header">
+            <div>
+                <h1>Consulta de famílias</h1>
+                <p>Busque por CPF de uma pessoa ou pelo código familiar.</p>
+            </div>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <section class="families-panel">
+            <form class="search-form" action="/consultar" method="get">
+                <label for="busca">CPF ou código familiar</label>
+                <div class="search-row">
+                    <input type="search" name="busca" id="busca" value="<%= search %>" placeholder="Digite CPF ou código familiar">
+                    <button type="submit">Buscar</button>
+                    <% if (search) { %>
+                        <a href="/consultar">Limpar</a>
+                    <% } %>
+                </div>
+            </form>
+        </section>
+
+        <section class="families-panel">
+            <h2>Famílias encontradas</h2>
+
+            <div class="families-table-wrapper">
+                <table class="families-table">
+                    <thead>
+                        <tr>
+                            <th>Código familiar</th>
+                            <th>Responsável</th>
+                            <th>Pessoas</th>
+                            <th>Folha resumo</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (familias.length === 0) { %>
+                            <tr>
+                                <td colspan="5">Nenhuma família encontrada.</td>
+                            </tr>
+                        <% } %>
+
+                        <% familias.forEach((familia) => { %>
+                            <tr>
+                                <td><%= familia.codigoFamiliar %></td>
+                                <td><%= familia.responsavel ?? 'Sem responsável ativo' %></td>
+                                <td><%= familia.pessoasAtivas %>/<%= familia.totalPessoas %></td>
+                                <td><%= familia.folhaResumo %></td>
+                                <td>
+                                    <a class="table-link" href="/familias/<%= familia.codigoFamiliar %>">Abrir</a>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

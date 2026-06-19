@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Distribuição</title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/familias.css">
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="families-page">
+        <header class="families-header">
+            <div>
+                <h1>Distribuição</h1>
+                <p>Escolha um projeto ativo para registrar a retirada dos itens.</p>
+            </div>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <section class="families-panel">
+            <h2>Projetos ativos</h2>
+
+            <div class="families-table-wrapper">
+                <table class="families-table">
+                    <thead>
+                        <tr>
+                            <th>Projeto</th>
+                            <th>Início</th>
+                            <th>Participantes ativos</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (projetos.length === 0) { %>
+                            <tr>
+                                <td colspan="4">Nenhum projeto ativo disponível.</td>
+                            </tr>
+                        <% } %>
+
+                        <% projetos.forEach((projeto) => { %>
+                            <tr>
+                                <td><%= projeto.nome %></td>
+                                <td><%= projeto.inicio %></td>
+                                <td><%= projeto.totalParticipantes %></td>
+                                <td>
+                                    <a class="table-link" href="/distribuicoes/<%= projeto.id %>">Selecionar</a>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

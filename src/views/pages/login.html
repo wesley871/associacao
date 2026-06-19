@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Login</title>
+    <link rel="stylesheet" href="css/comum.css">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+    <section class="content">
+        <div class="image">
+            <img src="img/logo-300x300.webp" alt="logo da associação">
+            <h2>ASSOCIAÇÃO DE AMIGOS DE BAIRRO DO JARDIM SÃO JOSÉ, CHACARA MÉA E ADJACÊNCIAS</h2>
+        </div>
+        <div class="form">
+            <h1>Bem vindo</h1>
+            <h2>Digite seu login e senha</h2>
+            <% if (error) { %>
+                <p class="form-error"><%= error %></p>
+            <% } %>
+            <form action="/login" method="post" id="form-login">
+                <div class="input-group">
+                    <input type="text" name="login" id="login" placeholder=" " autocomplete="username">
+                    <label for="login">Login</label>
+                </div>
+                <div class="input-group">
+                    <input type="password" name="password" id="password" placeholder=" " autocomplete="current-password">
+                    <label for="password">Senha</label>
+                </div>
+                <input type="submit" value="Entrar">
+            </form>
+        </div>
+    </section>
+
+</body>
+</html>

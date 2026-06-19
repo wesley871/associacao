@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Editar Família</title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/familias.css">
+    <script src="/js/cadastrar-familia.js" defer></script>
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="families-page">
+        <header class="families-header">
+            <div>
+                <h1>Editar família</h1>
+                <p>Código familiar <strong><%= familia.codigoFamiliar %></strong></p>
+            </div>
+            <a class="header-link" href="/consultar">Voltar</a>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <form class="family-edit-form" action="/familias/<%= familia.codigoFamiliar %>" method="post">
+            <section class="families-panel">
+                <h2>Dados da família</h2>
+
+                <div class="form-grid form-grid-three">
+                    <label>
+                        <span>Código familiar</span>
+                        <input type="text" name="codigoFamiliar" value="<%= familia.codigoFamiliar %>" required>
+                    </label>
+
+                    <label>
+                        <span>Data da entrevista</span>
+                        <input type="date" name="dataEntrevista" value="<%= familia.dataEntrevista %>" required>
+                    </label>
+
+                    <label>
+                        <span>Folha resumo</span>
+                        <input type="date" name="folhaResumo" value="<%= familia.folhaResumo %>" required>
+                    </label>
+
+                    <label>
+                        <span>Telefone do responsável</span>
+                        <input type="tel" name="telefoneResponsavel" value="<%= familia.telefoneResponsavel ?? '' %>" inputmode="tel" required>
+                    </label>
+                </div>
+            </section>
+
+            <section class="families-panel">
+                <div class="panel-title-row">
+                    <h2>Endereço</h2>
+                    <span class="cep-status" data-cep-status></span>
+                </div>
+
+                <div class="form-grid form-grid-three">
+                    <label>
+                        <span>CEP</span>
+                        <input type="text" name="cep" id="cep" value="<%= familia.endereco?.cep ?? '' %>" inputmode="numeric">
+                    </label>
+
+                    <label class="field-wide">
+                        <span>Logradouro</span>
+                        <input type="text" name="logradouro" id="logradouro" value="<%= familia.endereco?.logradouro ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Número</span>
+                        <input type="text" name="numero" value="<%= familia.endereco?.numero ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Complemento</span>
+                        <input type="text" name="complemento" id="complemento" value="<%= familia.endereco?.complemento ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Bairro</span>
+                        <input type="text" name="bairro" id="bairro" value="<%= familia.endereco?.bairro ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Localidade</span>
+                        <input type="text" name="localidade" id="localidade" value="<%= familia.endereco?.localidade ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>UF</span>
+                        <input type="text" name="uf" id="uf" value="<%= familia.endereco?.uf ?? '' %>" maxlength="2">
+                    </label>
+
+                    <label>
+                        <span>Estado</span>
+                        <input type="text" name="estado" id="estado" value="<%= familia.endereco?.estado ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>Região</span>
+                        <input type="text" name="regiao" id="regiao" value="<%= familia.endereco?.regiao ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>IBGE</span>
+                        <input type="text" name="ibge" id="ibge" value="<%= familia.endereco?.ibge ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>GIA</span>
+                        <input type="text" name="gia" id="gia" value="<%= familia.endereco?.gia ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>DDD</span>
+                        <input type="text" name="ddd" id="ddd" value="<%= familia.endereco?.ddd ?? '' %>">
+                    </label>
+
+                    <label>
+                        <span>SIAFI</span>
+                        <input type="text" name="siafi" id="siafi" value="<%= familia.endereco?.siafi ?? '' %>">
+                    </label>
+
+                    <label class="field-wide">
+                        <span>Referência</span>
+                        <input type="text" name="referencia" value="<%= familia.endereco?.referencia ?? '' %>">
+                    </label>
+                </div>
+            </section>
+
+            <section class="families-panel">
+                <h2>Pessoas da família</h2>
+
+                <div class="people-list">
+                    <% familia.pessoas.forEach((pessoa, index) => { %>
+                        <article class="person-edit-card <%= pessoa.ativo ? '' : 'person-inactive' %>">
+                            <div class="person-card-header">
+                                <div>
+                                    <h3><%= pessoa.nome %></h3>
+                                    <% if (pessoa.responsavelFamiliar) { %>
+                                        <span class="person-badge">Responsável familiar</span>
+                                    <% } %>
+                                    <% if (!pessoa.ativo) { %>
+                                        <span class="person-badge person-badge-muted">Inativa</span>
+                                    <% } %>
+                                </div>
+
+                                <% if (pessoa.ativo) { %>
+                                    <button
+                                        type="submit"
+                                        form="inativar-pessoa-<%= pessoa.id %>"
+                                        class="danger-button"
+                                    >
+                                        Inativar
+                                    </button>
+                                <% } %>
+                            </div>
+
+                            <input type="hidden" name="pessoaId" value="<%= pessoa.id %>">
+
+                            <div class="form-grid form-grid-three">
+                                <label class="field-wide">
+                                    <span>Nome completo</span>
+                                    <input type="text" name="familiarNome" value="<%= pessoa.nome %>" <%= pessoa.ativo ? 'required' : 'readonly' %>>
+                                </label>
+
+                                <label>
+                                    <span>CPF</span>
+                                    <input type="text" name="familiarCpf" value="<%= pessoa.cpf %>" <%= pessoa.ativo ? 'required' : 'readonly' %>>
+                                </label>
+
+                                <label>
+                                    <span>Nascimento</span>
+                                    <input type="date" name="familiarNascimento" value="<%= pessoa.nascimento %>" <%= pessoa.ativo ? 'required' : 'readonly' %>>
+                                </label>
+                            </div>
+                        </article>
+                    <% }) %>
+                </div>
+            </section>
+
+            <div class="family-actions">
+                <button type="submit">Salvar alterações</button>
+            </div>
+        </form>
+
+        <% familia.pessoas.forEach((pessoa) => { %>
+            <form
+                id="inativar-pessoa-<%= pessoa.id %>"
+                action="/familias/<%= familia.codigoFamiliar %>/pessoas/<%= pessoa.id %>/inativar"
+                method="post"
+            ></form>
+        <% }) %>
+    </main>
+</body>
+</html>

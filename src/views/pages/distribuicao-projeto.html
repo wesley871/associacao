@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Distribuição - <%= projeto.nome %></title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/familias.css">
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="families-page">
+        <header class="families-header">
+            <div>
+                <h1>Distribuição</h1>
+                <p><%= projeto.nome %></p>
+            </div>
+            <a class="header-link" href="/distribuicoes">Trocar projeto</a>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <section class="families-panel">
+            <div class="project-summary">
+                <div>
+                    <span>Participantes ativos</span>
+                    <strong><%= participantes.length %></strong>
+                </div>
+                <div>
+                    <span>Retiradas registradas</span>
+                    <strong><%= participantes.filter((participante) => participante.dataDistribuicao).length %></strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="families-panel">
+            <h2>Participantes</h2>
+
+            <div class="families-table-wrapper">
+                <table class="families-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CPF</th>
+                            <th>Família</th>
+                            <th>Data</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (participantes.length === 0) { %>
+                            <tr>
+                                <td colspan="6">Nenhum participante ativo vinculado a este projeto.</td>
+                            </tr>
+                        <% } %>
+
+                        <% participantes.forEach((participante) => { %>
+                            <tr>
+                                <td><%= participante.nome %></td>
+                                <td><%= participante.cpf %></td>
+                                <td><%= participante.codigoFamiliar %></td>
+                                <td>
+                                    <% if (participante.dataDistribuicao) { %>
+                                        <%= participante.dataDistribuicao %>
+                                    <% } else { %>
+                                        <form
+                                            id="distribuicao-<%= participante.idCadastro %>"
+                                            action="/distribuicoes/<%= projeto.id %>/participantes/<%= participante.idCadastro %>"
+                                            method="post"
+                                        >
+                                            <input type="date" name="data" value="<%= dataAtual %>" required>
+                                        </form>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if (participante.dataDistribuicao) { %>
+                                        <span class="person-badge">Retirado</span>
+                                    <% } else { %>
+                                        <span class="person-badge person-badge-muted">Pendente</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if (participante.dataDistribuicao) { %>
+                                        -
+                                    <% } else { %>
+                                        <button
+                                            type="submit"
+                                            form="distribuicao-<%= participante.idCadastro %>"
+                                            class="primary-table-button"
+                                        >
+                                            Registrar retirada
+                                        </button>
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

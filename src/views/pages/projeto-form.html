@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/familias.css">
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="families-page">
+        <header class="families-header">
+            <div>
+                <h1><%= title %></h1>
+                <p><%= projeto ? 'Atualize os dados do projeto.' : 'Cadastre um novo projeto da associação.' %></p>
+            </div>
+            <a class="header-link" href="<%= projeto ? `/projetos/${projeto.id}` : '/projetos' %>">Voltar</a>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <form class="family-edit-form" action="<%= formAction %>" method="post">
+            <section class="families-panel">
+                <h2>Dados do projeto</h2>
+
+                <div class="form-grid form-grid-three">
+                    <label class="field-wide">
+                        <span>Nome</span>
+                        <input type="text" name="nome" value="<%= projeto?.nome ?? '' %>" required>
+                    </label>
+
+                    <label>
+                        <span>Início</span>
+                        <input type="date" name="inicio" value="<%= projeto?.inicio ?? '' %>" required>
+                    </label>
+
+                    <label>
+                        <span>Fim</span>
+                        <input type="date" name="fim" value="<%= projeto?.fim ?? '' %>">
+                    </label>
+
+                    <label class="field-wide">
+                        <span>Descrição</span>
+                        <textarea name="descricao" rows="5"><%= projeto?.descricao ?? '' %></textarea>
+                    </label>
+                </div>
+            </section>
+
+            <div class="family-actions">
+                <button type="submit"><%= submitLabel %></button>
+            </div>
+        </form>
+    </main>
+</body>
+</html>
