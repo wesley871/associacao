@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import {
   adicionarParticipante,
+  apagarParticipante,
   atualizarProjeto,
   criarProjeto,
   inativarParticipante,
@@ -22,5 +23,6 @@ projetoRouter.post('/projetos/:id/editar', atualizarProjeto)
 projetoRouter.post('/projetos/:id/excluir', inativarProjeto)
 projetoRouter.post('/projetos/:id/participantes', adicionarParticipante)
 projetoRouter.post('/projetos/:id/participantes/:idCadastro/remover', inativarParticipante)
+projetoRouter.post('/projetos/:id/participantes/:idCadastro/excluir', apagarParticipante)
 
 export default projetoRouter

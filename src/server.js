@@ -5,10 +5,12 @@ import { resolve } from "node:path";
 import multer from './utils/multer.js';
 import { ensureDefaultAdmin } from "./modules/user/service/user.service.js";
 import helmet from "helmet";
+import { initDatabase } from "./configs/db.config.js";
 
 const app = express();
 
-ensureDefaultAdmin();
+await initDatabase();
+await ensureDefaultAdmin();
 
 app.use(helmet());
 app.use(express.json());

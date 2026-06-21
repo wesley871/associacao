@@ -2,6 +2,7 @@ const cepInput = document.querySelector('#cep')
 const cepStatus = document.querySelector('[data-cep-status]')
 const familyMembers = document.querySelector('[data-family-members]')
 const addFamilyMemberButton = document.querySelector('[data-add-family-member]')
+const isEditForm = Boolean(document.querySelector('.family-edit-form'))
 
 const addressFields = {
   logradouro: document.querySelector('#logradouro'),
@@ -105,8 +106,43 @@ function createFamilyMember() {
   const index = currentMembers.length
   const member = document.createElement('article')
 
-  member.className = 'family-member'
+  member.className = isEditForm ? 'person-edit-card' : 'family-member'
   member.dataset.familyMember = ''
+
+  if (isEditForm) {
+    member.innerHTML = `
+      <div class="person-card-header">
+        <div>
+          <h3>Novo familiar</h3>
+          <span class="person-badge person-badge-muted">Novo</span>
+        </div>
+
+        <button type="button" class="danger-button" data-remove-family-member>Remover</button>
+      </div>
+
+      <input type="hidden" name="pessoaId" value="">
+
+      <div class="form-grid form-grid-three">
+        <label class="field-wide">
+          <span>Nome completo</span>
+          <input type="text" name="familiarNome" required>
+        </label>
+
+        <label>
+          <span>CPF</span>
+          <input type="text" name="familiarCpf" inputmode="numeric" required>
+        </label>
+
+        <label>
+          <span>Nascimento</span>
+          <input type="date" name="familiarNascimento" required>
+        </label>
+      </div>
+    `
+
+    return member
+  }
+
   member.innerHTML = `
     <div class="member-title-row">
       <h3>Familiar ${index + 1}</h3>

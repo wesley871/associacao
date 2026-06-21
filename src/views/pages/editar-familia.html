@@ -135,9 +135,12 @@
             </section>
 
             <section class="families-panel">
-                <h2>Pessoas da família</h2>
+                <div class="panel-title-row">
+                    <h2>Pessoas da família</h2>
+                    <button type="button" class="secondary-button" data-add-family-member>Adicionar familiar</button>
+                </div>
 
-                <div class="people-list">
+                <div class="people-list" data-family-members>
                     <% familia.pessoas.forEach((pessoa, index) => { %>
                         <article class="person-edit-card <%= pessoa.ativo ? '' : 'person-inactive' %>">
                             <div class="person-card-header">

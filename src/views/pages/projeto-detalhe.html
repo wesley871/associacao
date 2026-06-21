@@ -114,13 +114,23 @@
                                     <% } %>
                                 </td>
                                 <td>
-                                    <% if (participante.ativo && projeto.ativo) { %>
-                                        <form action="/projetos/<%= projeto.id %>/participantes/<%= participante.id %>/remover" method="post">
-                                            <button type="submit" class="danger-button">Remover</button>
-                                        </form>
-                                    <% } else { %>
-                                        -
-                                    <% } %>
+                                    <div class="table-actions">
+                                        <% if (participante.ativo && projeto.ativo) { %>
+                                            <form action="/projetos/<%= projeto.id %>/participantes/<%= participante.id %>/remover" method="post">
+                                                <button type="submit" class="danger-button">Remover</button>
+                                            </form>
+                                        <% } %>
+
+                                        <% if (Number(participante.totalDistribuicoes) === 0) { %>
+                                            <form action="/projetos/<%= projeto.id %>/participantes/<%= participante.id %>/excluir" method="post">
+                                                <button type="submit" class="danger-button">Excluir</button>
+                                            </form>
+                                        <% } %>
+
+                                        <% if ((!participante.ativo || !projeto.ativo) && Number(participante.totalDistribuicoes) > 0) { %>
+                                            -
+                                        <% } %>
+                                    </div>
                                 </td>
                             </tr>
                         <% }) %>

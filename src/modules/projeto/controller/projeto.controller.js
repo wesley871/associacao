@@ -2,6 +2,7 @@ import {
   cadastrarProjeto,
   consultarProjetos,
   editarProjeto,
+  excluirParticipante,
   excluirProjeto,
   incluirParticipante,
   obterProjetoDetalhado,
@@ -15,9 +16,9 @@ function redirectWithFeedback(res, path, feedback) {
   res.redirect(`${path}?${status}=${message}`)
 }
 
-export function renderProjetos(req, res) {
+export async function renderProjetos(req, res) {
   const search = req.query.busca ?? ''
-  const projetos = consultarProjetos(search)
+  const projetos = await consultarProjetos(search)
 
   res.render('projetos', {
     projetos,
@@ -52,8 +53,8 @@ export function renderNovoProjeto(req, res) {
   })
 }
 
-export function criarProjeto(req, res) {
-  const result = cadastrarProjeto(req.body)
+export async function criarProjeto(req, res) {
+  const result = await cadastrarProjeto(req.body)
 
   if (!result.ok) {
     redirectWithFeedback(res, '/projetos/novo', result)
@@ -63,8 +64,8 @@ export function criarProjeto(req, res) {
   redirectWithFeedback(res, `/projetos/${result.projeto.id}`, result)
 }
 
-export function renderDetalheProjeto(req, res) {
-  const projeto = obterProjetoDetalhado(req.params.id)
+export async function renderDetalheProjeto(req, res) {
+  const projeto = await obterProjetoDetalhado(req.params.id)
 
   if (!projeto) {
     res.redirect('/projetos?error=Projeto%20n%C3%A3o%20encontrado.')
@@ -85,8 +86,8 @@ export function renderDetalheProjeto(req, res) {
   })
 }
 
-export function renderEditarProjeto(req, res) {
-  const projeto = obterProjetoDetalhado(req.params.id)
+export async function renderEditarProjeto(req, res) {
+  const projeto = await obterProjetoDetalhado(req.params.id)
 
   if (!projeto) {
     res.redirect('/projetos?error=Projeto%20n%C3%A3o%20encontrado.')
@@ -110,8 +111,8 @@ export function renderEditarProjeto(req, res) {
   })
 }
 
-export function atualizarProjeto(req, res) {
-  const result = editarProjeto({
+export async function atualizarProjeto(req, res) {
+  const result = await editarProjeto({
     id: req.params.id,
     ...req.body
   })
@@ -119,14 +120,14 @@ export function atualizarProjeto(req, res) {
   redirectWithFeedback(res, result.ok ? `/projetos/${req.params.id}` : `/projetos/${req.params.id}/editar`, result)
 }
 
-export function inativarProjeto(req, res) {
-  const result = excluirProjeto(req.params.id)
+export async function inativarProjeto(req, res) {
+  const result = await excluirProjeto(req.params.id)
 
   redirectWithFeedback(res, result.ok ? '/projetos' : `/projetos/${req.params.id}`, result)
 }
 
-export function adicionarParticipante(req, res) {
-  const result = incluirParticipante({
+export async function adicionarParticipante(req, res) {
+  const result = await incluirParticipante({
     idProjeto: req.params.id,
     cpf: req.body.cpf,
     inicio: req.body.inicio
@@ -135,8 +136,17 @@ export function adicionarParticipante(req, res) {
   redirectWithFeedback(res, `/projetos/${req.params.id}`, result)
 }
 
-export function inativarParticipante(req, res) {
-  const result = removerParticipante({
+export async function inativarParticipante(req, res) {
+  const result = await removerParticipante({
+    idProjeto: req.params.id,
+    idCadastro: req.params.idCadastro
+  })
+
+  redirectWithFeedback(res, `/projetos/${req.params.id}`, result)
+}
+
+export async function apagarParticipante(req, res) {
+  const result = await excluirParticipante({
     idProjeto: req.params.id,
     idCadastro: req.params.idCadastro
   })

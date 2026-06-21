@@ -39,7 +39,7 @@ export function renderCadastrarFamilia(req, res) {
   })
 }
 
-export function cadastrarFamilia(req, res) {
+export async function cadastrarFamilia(req, res) {
   const cadastro = buildFamiliaFromForm(req.body)
   const hasInvalidFamiliar = cadastro.familiares.some((familiar) => {
     return !familiar.nomeCompleto || !familiar.cpf || !familiar.nascimento
@@ -61,7 +61,7 @@ export function cadastrarFamilia(req, res) {
     return
   }
 
-  const result = saveCadastroFamilia(cadastro)
+  const result = await saveCadastroFamilia(cadastro)
 
   renderForm(res, {
     success: result.ok ? result.message : null,
@@ -81,9 +81,9 @@ export async function buscarCep(req, res) {
   }
 }
 
-export function renderConsultarFamilias(req, res) {
+export async function renderConsultarFamilias(req, res) {
   const search = req.query.busca ?? ''
-  const familias = consultarFamilias(search)
+  const familias = await consultarFamilias(search)
 
   res.render('consultar-familias', {
     familias,
@@ -100,8 +100,8 @@ export function renderConsultarFamilias(req, res) {
   })
 }
 
-export function renderEditarFamilia(req, res) {
-  const familia = obterFamilia(req.params.codigoFamiliar)
+export async function renderEditarFamilia(req, res) {
+  const familia = await obterFamilia(req.params.codigoFamiliar)
 
   if (!familia) {
     res.redirect('/consultar?error=Fam%C3%ADlia%20n%C3%A3o%20encontrada.')
@@ -122,16 +122,16 @@ export function renderEditarFamilia(req, res) {
   })
 }
 
-export function atualizarFamilia(req, res) {
+export async function atualizarFamilia(req, res) {
   const cadastro = buildFamiliaEditFromForm(req.body)
-  const result = editarFamilia(req.params.codigoFamiliar, cadastro)
+  const result = await editarFamilia(req.params.codigoFamiliar, cadastro)
   const nextCodigo = result.familia?.codigoFamiliar ?? req.params.codigoFamiliar
 
   redirectWithFeedback(res, `/familias/${nextCodigo}`, result)
 }
 
-export function inativarPessoa(req, res) {
-  const result = inativarPessoaDaFamilia({
+export async function inativarPessoa(req, res) {
+  const result = await inativarPessoaDaFamilia({
     codigoFamiliar: req.params.codigoFamiliar,
     idPessoa: req.params.idPessoa
   })

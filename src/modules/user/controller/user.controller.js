@@ -29,8 +29,8 @@ export function renderLogin(req, res) {
   })
 }
 
-export function login(req, res) {
-  const auth = authenticateUser({
+export async function login(req, res) {
+  const auth = await authenticateUser({
     login: req.body.login,
     password: req.body.password
   })
@@ -54,8 +54,8 @@ export function logout(req, res) {
   res.redirect('/login')
 }
 
-export function renderUserSettings(req, res) {
-  const { users, editUser } = getUserManagementData(req.query.edit)
+export async function renderUserSettings(req, res) {
+  const { users, editUser } = await getUserManagementData(req.query.edit)
 
   res.render('configuracoes-usuarios', {
     users,
@@ -73,8 +73,8 @@ export function renderUserSettings(req, res) {
   })
 }
 
-export function createUser(req, res) {
-  const feedback = createSystemUser({
+export async function createUser(req, res) {
+  const feedback = await createSystemUser({
     login: req.body.login,
     password: req.body.password
   })
@@ -82,8 +82,8 @@ export function createUser(req, res) {
   redirectWithFeedback(res, '/configuracoes/usuarios', feedback)
 }
 
-export function updateUser(req, res) {
-  const feedback = updateSystemUser({
+export async function updateUser(req, res) {
+  const feedback = await updateSystemUser({
     uuid: req.params.uuid,
     login: req.body.login,
     password: req.body.password
@@ -92,8 +92,8 @@ export function updateUser(req, res) {
   redirectWithFeedback(res, '/configuracoes/usuarios', feedback)
 }
 
-export function deleteUser(req, res) {
-  const feedback = deleteSystemUser({
+export async function deleteUser(req, res) {
+  const feedback = await deleteSystemUser({
     uuid: req.params.uuid,
     currentUserUuid: req.user.uuid
   })

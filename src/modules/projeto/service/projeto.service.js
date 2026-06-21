@@ -1,7 +1,10 @@
 import {
   addParticipante,
+  countDistribuicoesByCadastro,
   createProjeto,
+  deleteParticipante,
   findActiveCadastro,
+  findCadastroById,
   findPessoaByCpf,
   findProjetoById,
   inactivateParticipante,
@@ -23,12 +26,12 @@ function today() {
   return new Date().toISOString().slice(0, 10)
 }
 
-export function consultarProjetos(search = '') {
-  return listProjetos(search)
+export async function consultarProjetos(search = '') {
+  return await listProjetos(search)
 }
 
-export function obterProjetoDetalhado(id) {
-  const projeto = findProjetoById(Number(id))
+export async function obterProjetoDetalhado(id) {
+  const projeto = await findProjetoById(Number(id))
 
   if (!projeto) {
     return null
@@ -36,11 +39,11 @@ export function obterProjetoDetalhado(id) {
 
   return {
     ...projeto,
-    participantes: listParticipantes(projeto.id)
+    participantes: await listParticipantes(projeto.id)
   }
 }
 
-export function cadastrarProjeto({ nome, descricao, inicio, fim }) {
+export async function cadastrarProjeto({ nome, descricao, inicio, fim }) {
   const projeto = {
     nome: normalizeText(nome),
     descricao: normalizeText(descricao),
@@ -55,7 +58,7 @@ export function cadastrarProjeto({ nome, descricao, inicio, fim }) {
     }
   }
 
-  const saved = createProjeto(projeto)
+  const saved = await createProjeto(projeto)
 
   return {
     ok: true,
@@ -64,8 +67,8 @@ export function cadastrarProjeto({ nome, descricao, inicio, fim }) {
   }
 }
 
-export function editarProjeto({ id, nome, descricao, inicio, fim }) {
-  const currentProjeto = findProjetoById(Number(id))
+export async function editarProjeto({ id, nome, descricao, inicio, fim }) {
+  const currentProjeto = await findProjetoById(Number(id))
 
   if (!currentProjeto) {
     return {
@@ -92,12 +95,12 @@ export function editarProjeto({ id, nome, descricao, inicio, fim }) {
   return {
     ok: true,
     message: 'Projeto atualizado com sucesso.',
-    projeto: updateProjeto(projeto)
+    projeto: await updateProjeto(projeto)
   }
 }
 
-export function excluirProjeto(id) {
-  const projeto = findProjetoById(Number(id))
+export async function excluirProjeto(id) {
+  const projeto = await findProjetoById(Number(id))
 
   if (!projeto) {
     return {
@@ -116,12 +119,12 @@ export function excluirProjeto(id) {
   return {
     ok: true,
     message: 'Projeto inativado com sucesso.',
-    projeto: inactivateProjeto(Number(id), today())
+    projeto: await inactivateProjeto(Number(id), today())
   }
 }
 
-export function incluirParticipante({ idProjeto, cpf, inicio }) {
-  const projeto = findProjetoById(Number(idProjeto))
+export async function incluirParticipante({ idProjeto, cpf, inicio }) {
+  const projeto = await findProjetoById(Number(idProjeto))
 
   if (!projeto) {
     return {
@@ -137,7 +140,7 @@ export function incluirParticipante({ idProjeto, cpf, inicio }) {
     }
   }
 
-  const pessoa = findPessoaByCpf(onlyNumbers(cpf))
+  const pessoa = await findPessoaByCpf(onlyNumbers(cpf))
 
   if (!pessoa) {
     return {
@@ -153,14 +156,14 @@ export function incluirParticipante({ idProjeto, cpf, inicio }) {
     }
   }
 
-  if (findActiveCadastro({ idProjeto: Number(idProjeto), idPessoa: pessoa.id })) {
+  if (await findActiveCadastro({ idProjeto: Number(idProjeto), idPessoa: pessoa.id })) {
     return {
       ok: false,
       message: 'Essa pessoa já participa deste projeto.'
     }
   }
 
-  addParticipante({
+  await addParticipante({
     idProjeto: Number(idProjeto),
     idPessoa: pessoa.id,
     inicio: normalizeText(inicio) || today()
@@ -172,8 +175,8 @@ export function incluirParticipante({ idProjeto, cpf, inicio }) {
   }
 }
 
-export function removerParticipante({ idProjeto, idCadastro }) {
-  const projeto = findProjetoById(Number(idProjeto))
+export async function removerParticipante({ idProjeto, idCadastro }) {
+  const projeto = await findProjetoById(Number(idProjeto))
 
   if (!projeto) {
     return {
@@ -182,7 +185,7 @@ export function removerParticipante({ idProjeto, idCadastro }) {
     }
   }
 
-  inactivateParticipante({
+  await inactivateParticipante({
     idCadastro: Number(idCadastro),
     fim: today()
   })
@@ -190,5 +193,42 @@ export function removerParticipante({ idProjeto, idCadastro }) {
   return {
     ok: true,
     message: 'Participante removido do projeto.'
+  }
+}
+
+export async function excluirParticipante({ idProjeto, idCadastro }) {
+  const projeto = await findProjetoById(Number(idProjeto))
+
+  if (!projeto) {
+    return {
+      ok: false,
+      message: 'Projeto não encontrado.'
+    }
+  }
+
+  const cadastro = await findCadastroById({
+    idProjeto: Number(idProjeto),
+    idCadastro: Number(idCadastro)
+  })
+
+  if (!cadastro) {
+    return {
+      ok: false,
+      message: 'Participante não encontrado neste projeto.'
+    }
+  }
+
+  if (await countDistribuicoesByCadastro(cadastro.id) > 0) {
+    return {
+      ok: false,
+      message: 'Não é possível excluir participante com retirada registrada. Use a remoção para encerrar o vínculo.'
+    }
+  }
+
+  await deleteParticipante(cadastro.id)
+
+  return {
+    ok: true,
+    message: 'Participante excluído do projeto.'
   }
 }

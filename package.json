@@ -1,15 +1,15 @@
 {
-  "name": "tesseractjs",
+  "name": "associacao",
   "version": "1.0.0",
   "description": "",
-  "license": "ISC",
-  "author": "",
+  "license": "MIT",
+  "author": "Wesley Araujo",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node --watch-path=src src/server.js",
-    "start": "node src/server.js"
+    "dev": "node --env-file-if-exists=.env --watch-path=src src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -18,6 +18,7 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
+    "pg": "^8.22.0",
     "tesseract.js": "^7.0.0"
   }
 }

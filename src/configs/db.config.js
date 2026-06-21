@@ -1,158 +1,414 @@
-import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
+import pg from 'pg'
 
-const databasePath = process.env.DB_PATH
+const { Pool } = pg
+
+const sqliteDatabasePath = process.env.DB_PATH
   ?? fileURLToPath(new URL('./dados.sqlite', import.meta.url))
 
-const db = new DatabaseSync(databasePath)
+function getPostgresConnectionString() {
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL
+  }
 
-db.exec('PRAGMA foreign_keys = ON')
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.STRING_CONNECTION_PRODUCTION
+  }
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS Pessoa
-(
-  id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  codigo_familiar TEXT    NOT NULL,
-  nome         TEXT    NOT NULL,
-  cpf          TEXT    NOT NULL,
-  nascimento   TEXT    NOT NULL,
-  data_cadunico TEXT   NOT NULL,
-  folha_resumo TEXT    NOT NULL,
-  responsavel_familiar INTEGER NOT NULL DEFAULT 0 CHECK (responsavel_familiar IN (0, 1)),
-  menor        INTEGER NOT NULL DEFAULT 0 CHECK (menor IN (0, 1)),
-  ativo        INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
-);
-`)
+  return process.env.STRING_CONNECTION_DEV
+}
 
-db.exec(`
-CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoa_cpf
-ON Pessoa (cpf);
-`)
+function isPostgresUniqueError(error) {
+  return error?.code === '23505'
+}
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS Usuario
-(
-  id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  id_pessoa INTEGER NULL     REFERENCES Pessoa (id),
-  uuid      TEXT    NOT NULL UNIQUE,
-  login     TEXT    NOT NULL UNIQUE,
-  hash      TEXT    NOT NULL
-);
-`)
+function normalizeSql(sql) {
+  return sql
+    .replace(/\bCOLLATE\s+NOCASE\b/gi, '')
+    .replace(/\?/g, () => `$${normalizeSql.paramIndex++}`)
+}
 
-db.exec(`
-CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_login
-ON Usuario (login);
-`)
+function toPostgresSql(sql) {
+  normalizeSql.paramIndex = 1
+  return normalizeSql(sql)
+}
 
-db.exec(`
-CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_uuid
-ON Usuario (uuid);
-`)
+class SqliteAdapter {
+  dialect = 'sqlite'
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS Projeto
-(
-  id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  nome      TEXT    NOT NULL,
-  descricao TEXT    NULL,
-  inicio    TEXT    NOT NULL,
-  fim       TEXT    NULL,
-  ativo     INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
-);
-`)
+  constructor(DatabaseSync, databasePath) {
+    this.db = new DatabaseSync(databasePath)
+  }
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS Cadastro
-(
-  id         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  id_projeto INTEGER NOT NULL REFERENCES Projeto (id),
-  id_pessoa  INTEGER NOT NULL REFERENCES Pessoa (id),
-  inicio     TEXT    NOT NULL,
-  fim        TEXT    NULL,
-  ativo      INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
-);
-`)
+  async exec(sql) {
+    this.db.exec(sql)
+  }
 
-db.exec(`
-CREATE INDEX IF NOT EXISTS idx_cadastro_projeto_pessoa
-ON Cadastro (id_projeto, id_pessoa);
-`)
+  async get(sql, params = []) {
+    return this.db.prepare(sql).get(...params)
+  }
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS Distribuicao
-(
-  id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  id_cadastro INTEGER NOT NULL REFERENCES Cadastro (id),
-  data        TEXT    NOT NULL
-);
-`)
+  async all(sql, params = []) {
+    return this.db.prepare(sql).all(...params)
+  }
 
-db.exec(`
-CREATE INDEX IF NOT EXISTS idx_distribuicao_cadastro
-ON Distribuicao (id_cadastro);
-`)
+  async run(sql, params = []) {
+    const statement = this.db.prepare(sql)
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS Telefone
-(
-  id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  descricao TEXT    NULL,
-  numero    TEXT    NOT NULL,
-  principal INTEGER NOT NULL DEFAULT 1 CHECK (principal IN (0, 1)),
-  whatsapp  INTEGER NOT NULL DEFAULT 1 CHECK (whatsapp IN (0, 1)),
-  ativo     INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
-);
-`)
+    if (/\bRETURNING\b/i.test(sql)) {
+      const row = statement.get(...params)
+      return {
+        lastInsertRowid: row?.id ?? null,
+        changes: row ? 1 : 0,
+        row
+      }
+    }
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS Pessoa_Contato
-(
-  id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  id_pessoa   INTEGER NOT NULL REFERENCES Pessoa (id),
-  id_telefone INTEGER NOT NULL REFERENCES Telefone (id)
-);
-`)
+    return statement.run(...params)
+  }
 
-db.exec(`
-CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoa_contato
-ON Pessoa_Contato (id_pessoa, id_telefone);
-`)
+  async transaction(callback) {
+    this.db.exec('BEGIN')
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS Endereco
-(
-  id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  cep         TEXT    NULL,
-  logradouro  TEXT    NULL,
-  numero      TEXT    NULL,
-  complemento TEXT    NULL,
-  bairro      TEXT    NULL,
-  localidade  TEXT    NULL,
-  uf          TEXT    NULL,
-  estado      TEXT    NULL,
-  regiao      TEXT    NULL,
-  ibge        TEXT    NULL,
-  gia         TEXT    NULL,
-  ddd         TEXT    NULL,
-  siafi       TEXT    NULL,
-  descricao   TEXT    NULL,
-  ativo       INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
-);
-`)
+    try {
+      const result = await callback(this)
+      this.db.exec('COMMIT')
+      return result
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
+    }
+  }
+}
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS Pessoa_Endereco
-(
-  id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  id_pessoa   INTEGER NOT NULL REFERENCES Pessoa (id),
-  id_endereco INTEGER NOT NULL REFERENCES Endereco (id)
-);
-`)
+class PostgresAdapter {
+  dialect = 'postgres'
 
-db.exec(`
-CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoa_endereco
-ON Pessoa_Endereco (id_pessoa, id_endereco);
-`)
+  constructor(connectionString) {
+    this.pool = new Pool({
+      connectionString
+    })
+  }
+
+  async exec(sql) {
+    await this.pool.query(sql)
+  }
+
+  async get(sql, params = []) {
+    const result = await this.pool.query(toPostgresSql(sql), params)
+    return result.rows[0]
+  }
+
+  async all(sql, params = []) {
+    const result = await this.pool.query(toPostgresSql(sql), params)
+    return result.rows
+  }
+
+  async run(sql, params = []) {
+    const result = await this.pool.query(toPostgresSql(sql), params)
+    return {
+      lastInsertRowid: result.rows[0]?.id ?? null,
+      changes: result.rowCount,
+      row: result.rows[0] ?? null
+    }
+  }
+
+  async transaction(callback) {
+    const client = await this.pool.connect()
+    const transactionDb = {
+      dialect: this.dialect,
+      exec: async (sql) => client.query(sql),
+      get: async (sql, params = []) => {
+        const result = await client.query(toPostgresSql(sql), params)
+        return result.rows[0]
+      },
+      all: async (sql, params = []) => {
+        const result = await client.query(toPostgresSql(sql), params)
+        return result.rows
+      },
+      run: async (sql, params = []) => {
+        const result = await client.query(toPostgresSql(sql), params)
+        return {
+          lastInsertRowid: result.rows[0]?.id ?? null,
+          changes: result.rowCount,
+          row: result.rows[0] ?? null
+        }
+      }
+    }
+
+    try {
+      await client.query('BEGIN')
+      const result = await callback(transactionDb)
+      await client.query('COMMIT')
+      return result
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+}
+
+const postgresConnectionString = getPostgresConnectionString()
+const db = postgresConnectionString
+  ? new PostgresAdapter(postgresConnectionString)
+  : new SqliteAdapter((await import('node:sqlite')).DatabaseSync, sqliteDatabasePath)
+
+function getSchema() {
+  if (db.dialect === 'postgres') {
+    return `
+      CREATE TABLE IF NOT EXISTS Pessoa
+      (
+        id           INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+        codigo_familiar TEXT    NOT NULL,
+        nome         TEXT    NOT NULL,
+        cpf          TEXT    NOT NULL,
+        nascimento   TEXT    NOT NULL,
+        data_cadunico TEXT   NOT NULL,
+        folha_resumo TEXT    NOT NULL,
+        responsavel_familiar INTEGER NOT NULL DEFAULT 0 CHECK (responsavel_familiar IN (0, 1)),
+        menor        INTEGER NOT NULL DEFAULT 0 CHECK (menor IN (0, 1)),
+        ativo        INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoa_cpf
+      ON Pessoa (cpf);
+
+      CREATE TABLE IF NOT EXISTS Usuario
+      (
+        id        INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+        id_pessoa INTEGER NULL     REFERENCES Pessoa (id),
+        uuid      TEXT    NOT NULL UNIQUE,
+        login     TEXT    NOT NULL UNIQUE,
+        hash      TEXT    NOT NULL
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_login
+      ON Usuario (login);
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_uuid
+      ON Usuario (uuid);
+
+      CREATE TABLE IF NOT EXISTS Projeto
+      (
+        id        INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+        nome      TEXT    NOT NULL,
+        descricao TEXT    NULL,
+        inicio    TEXT    NOT NULL,
+        fim       TEXT    NULL,
+        ativo     INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+      );
+
+      CREATE TABLE IF NOT EXISTS Cadastro
+      (
+        id         INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+        id_projeto INTEGER NOT NULL REFERENCES Projeto (id),
+        id_pessoa  INTEGER NOT NULL REFERENCES Pessoa (id),
+        inicio     TEXT    NOT NULL,
+        fim        TEXT    NULL,
+        ativo      INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_cadastro_projeto_pessoa
+      ON Cadastro (id_projeto, id_pessoa);
+
+      CREATE TABLE IF NOT EXISTS Distribuicao
+      (
+        id          INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+        id_cadastro INTEGER NOT NULL REFERENCES Cadastro (id),
+        data        TEXT    NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_distribuicao_cadastro
+      ON Distribuicao (id_cadastro);
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_distribuicao_cadastro_data
+      ON Distribuicao (id_cadastro, data);
+
+      CREATE TABLE IF NOT EXISTS Telefone
+      (
+        id        INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+        descricao TEXT    NULL,
+        numero    TEXT    NOT NULL,
+        principal INTEGER NOT NULL DEFAULT 1 CHECK (principal IN (0, 1)),
+        whatsapp  INTEGER NOT NULL DEFAULT 1 CHECK (whatsapp IN (0, 1)),
+        ativo     INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+      );
+
+      CREATE TABLE IF NOT EXISTS Pessoa_Contato
+      (
+        id          INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+        id_pessoa   INTEGER NOT NULL REFERENCES Pessoa (id),
+        id_telefone INTEGER NOT NULL REFERENCES Telefone (id)
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoa_contato
+      ON Pessoa_Contato (id_pessoa, id_telefone);
+
+      CREATE TABLE IF NOT EXISTS Endereco
+      (
+        id          INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+        cep         TEXT    NULL,
+        logradouro  TEXT    NULL,
+        numero      TEXT    NULL,
+        complemento TEXT    NULL,
+        bairro      TEXT    NULL,
+        localidade  TEXT    NULL,
+        uf          TEXT    NULL,
+        estado      TEXT    NULL,
+        regiao      TEXT    NULL,
+        ibge        TEXT    NULL,
+        gia         TEXT    NULL,
+        ddd         TEXT    NULL,
+        siafi       TEXT    NULL,
+        descricao   TEXT    NULL,
+        ativo       INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+      );
+
+      CREATE TABLE IF NOT EXISTS Pessoa_Endereco
+      (
+        id          INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+        id_pessoa   INTEGER NOT NULL REFERENCES Pessoa (id),
+        id_endereco INTEGER NOT NULL REFERENCES Endereco (id)
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoa_endereco
+      ON Pessoa_Endereco (id_pessoa, id_endereco);
+    `
+  }
+
+  return `
+    PRAGMA foreign_keys = ON;
+
+    CREATE TABLE IF NOT EXISTS Pessoa
+    (
+      id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      codigo_familiar TEXT    NOT NULL,
+      nome         TEXT    NOT NULL,
+      cpf          TEXT    NOT NULL,
+      nascimento   TEXT    NOT NULL,
+      data_cadunico TEXT   NOT NULL,
+      folha_resumo TEXT    NOT NULL,
+      responsavel_familiar INTEGER NOT NULL DEFAULT 0 CHECK (responsavel_familiar IN (0, 1)),
+      menor        INTEGER NOT NULL DEFAULT 0 CHECK (menor IN (0, 1)),
+      ativo        INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoa_cpf
+    ON Pessoa (cpf);
+
+    CREATE TABLE IF NOT EXISTS Usuario
+    (
+      id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      id_pessoa INTEGER NULL     REFERENCES Pessoa (id),
+      uuid      TEXT    NOT NULL UNIQUE,
+      login     TEXT    NOT NULL UNIQUE,
+      hash      TEXT    NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_login
+    ON Usuario (login);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_uuid
+    ON Usuario (uuid);
+
+    CREATE TABLE IF NOT EXISTS Projeto
+    (
+      id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      nome      TEXT    NOT NULL,
+      descricao TEXT    NULL,
+      inicio    TEXT    NOT NULL,
+      fim       TEXT    NULL,
+      ativo     INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+    );
+
+    CREATE TABLE IF NOT EXISTS Cadastro
+    (
+      id         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      id_projeto INTEGER NOT NULL REFERENCES Projeto (id),
+      id_pessoa  INTEGER NOT NULL REFERENCES Pessoa (id),
+      inicio     TEXT    NOT NULL,
+      fim        TEXT    NULL,
+      ativo      INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_cadastro_projeto_pessoa
+    ON Cadastro (id_projeto, id_pessoa);
+
+    CREATE TABLE IF NOT EXISTS Distribuicao
+    (
+      id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      id_cadastro INTEGER NOT NULL REFERENCES Cadastro (id),
+      data        TEXT    NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_distribuicao_cadastro
+    ON Distribuicao (id_cadastro);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_distribuicao_cadastro_data
+    ON Distribuicao (id_cadastro, data);
+
+    CREATE TABLE IF NOT EXISTS Telefone
+    (
+      id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      descricao TEXT    NULL,
+      numero    TEXT    NOT NULL,
+      principal INTEGER NOT NULL DEFAULT 1 CHECK (principal IN (0, 1)),
+      whatsapp  INTEGER NOT NULL DEFAULT 1 CHECK (whatsapp IN (0, 1)),
+      ativo     INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+    );
+
+    CREATE TABLE IF NOT EXISTS Pessoa_Contato
+    (
+      id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      id_pessoa   INTEGER NOT NULL REFERENCES Pessoa (id),
+      id_telefone INTEGER NOT NULL REFERENCES Telefone (id)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoa_contato
+    ON Pessoa_Contato (id_pessoa, id_telefone);
+
+    CREATE TABLE IF NOT EXISTS Endereco
+    (
+      id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      cep         TEXT    NULL,
+      logradouro  TEXT    NULL,
+      numero      TEXT    NULL,
+      complemento TEXT    NULL,
+      bairro      TEXT    NULL,
+      localidade  TEXT    NULL,
+      uf          TEXT    NULL,
+      estado      TEXT    NULL,
+      regiao      TEXT    NULL,
+      ibge        TEXT    NULL,
+      gia         TEXT    NULL,
+      ddd         TEXT    NULL,
+      siafi       TEXT    NULL,
+      descricao   TEXT    NULL,
+      ativo       INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
+    );
+
+    CREATE TABLE IF NOT EXISTS Pessoa_Endereco
+    (
+      id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      id_pessoa   INTEGER NOT NULL REFERENCES Pessoa (id),
+      id_endereco INTEGER NOT NULL REFERENCES Endereco (id)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoa_endereco
+    ON Pessoa_Endereco (id_pessoa, id_endereco);
+  `
+}
+
+export async function initDatabase() {
+  await db.exec(getSchema())
+}
+
+export function isUniqueConstraintError(error) {
+  return isPostgresUniqueError(error)
+    || error?.code === 'ERR_SQLITE_CONSTRAINT_UNIQUE'
+    || error?.message?.includes('UNIQUE constraint failed')
+}
 
 export default db

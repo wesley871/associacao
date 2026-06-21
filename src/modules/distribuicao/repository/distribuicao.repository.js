@@ -1,76 +1,76 @@
 import db from '../../../configs/db.config.js'
 
-export function listProjetosAtivos() {
-  return db.prepare(`
+export async function listProjetosAtivos() {
+  return db.all(`
     SELECT
       p.id,
       p.nome,
       p.inicio,
       p.fim,
-      COUNT(c.id) AS totalParticipantes
+      COUNT(c.id) AS "totalParticipantes"
     FROM Projeto p
     LEFT JOIN Cadastro c ON c.id_projeto = p.id AND c.ativo = 1
     WHERE p.ativo = 1
-    GROUP BY p.id
+    GROUP BY p.id, p.nome, p.inicio, p.fim
     ORDER BY p.nome COLLATE NOCASE
-  `).all()
+  `)
 }
 
-export function findProjetoAtivoById(idProjeto) {
-  return db.prepare(`
+export async function findProjetoAtivoById(idProjeto) {
+  return db.get(`
     SELECT id, nome, descricao, inicio, fim, ativo
     FROM Projeto
     WHERE id = ? AND ativo = 1
-  `).get(idProjeto)
+  `, [idProjeto])
 }
 
-export function listParticipantesDistribuicao(idProjeto) {
-  return db.prepare(`
+export async function listParticipantesDistribuicao(idProjeto, data) {
+  return db.all(`
     SELECT
-      c.id AS idCadastro,
+      c.id AS "idCadastro",
       c.inicio,
       p.nome,
       p.cpf,
-      p.codigo_familiar AS codigoFamiliar,
-      MAX(d.data) AS dataDistribuicao
+      p.codigo_familiar AS "codigoFamiliar",
+      d.data AS "dataDistribuicao"
     FROM Cadastro c
     INNER JOIN Pessoa p ON p.id = c.id_pessoa
-    LEFT JOIN Distribuicao d ON d.id_cadastro = c.id
+    LEFT JOIN Distribuicao d ON d.id_cadastro = c.id AND d.data = ?
     WHERE c.id_projeto = ? AND c.ativo = 1 AND p.ativo = 1
-    GROUP BY c.id
-    ORDER BY dataDistribuicao IS NOT NULL, p.nome COLLATE NOCASE
-  `).all(idProjeto)
+    ORDER BY d.data IS NOT NULL, p.nome COLLATE NOCASE
+  `, [data, idProjeto])
 }
 
-export function findDistribuicaoByCadastro(idCadastro) {
-  return db.prepare(`
-    SELECT id, id_cadastro AS idCadastro, data
+export async function findDistribuicaoByCadastroAndData({ idCadastro, data }) {
+  return db.get(`
+    SELECT id, id_cadastro AS "idCadastro", data
     FROM Distribuicao
-    WHERE id_cadastro = ?
+    WHERE id_cadastro = ? AND data = ?
     ORDER BY data DESC, id DESC
     LIMIT 1
-  `).get(idCadastro)
+  `, [idCadastro, data])
 }
 
-export function findCadastroAtivoById(idCadastro) {
-  return db.prepare(`
+export async function findCadastroAtivoById(idCadastro) {
+  return db.get(`
     SELECT
       c.id,
-      c.id_projeto AS idProjeto,
-      c.id_pessoa AS idPessoa,
+      c.id_projeto AS "idProjeto",
+      c.id_pessoa AS "idPessoa",
       c.ativo,
-      p.ativo AS pessoaAtiva
+      p.ativo AS "pessoaAtiva"
     FROM Cadastro c
     INNER JOIN Pessoa p ON p.id = c.id_pessoa
     WHERE c.id = ? AND c.ativo = 1 AND p.ativo = 1
-  `).get(idCadastro)
+  `, [idCadastro])
 }
 
-export function createDistribuicao({ idCadastro, data }) {
-  const result = db.prepare(`
+export async function createDistribuicao({ idCadastro, data }) {
+  const result = await db.run(`
     INSERT INTO Distribuicao (id_cadastro, data)
     VALUES (?, ?)
-  `).run(idCadastro, data)
+    RETURNING id
+  `, [idCadastro, data])
 
   return Number(result.lastInsertRowid)
 }

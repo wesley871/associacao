@@ -1,5 +1,6 @@
 import { hashPassword, shouldRehashPassword, verifyPassword } from '../../../utils/password.util.js'
 import { signToken } from '../../../utils/jwt.util.js'
+import { isUniqueConstraintError } from '../../../configs/db.config.js'
 import {
   countUsers,
   createUser,
@@ -19,35 +20,30 @@ function normalizeLogin(login = '') {
   return login.trim()
 }
 
-function isUniqueConstraintError(error) {
-  return error?.code === 'ERR_SQLITE_CONSTRAINT_UNIQUE'
-    || error?.message?.includes('UNIQUE constraint failed')
-}
-
-export function ensureDefaultAdmin() {
-  if (countUsers() > 0) {
+export async function ensureDefaultAdmin() {
+  if (await countUsers() > 0) {
     return null
   }
 
-  return createUser({
+  return await createUser({
     login: DEFAULT_ADMIN_LOGIN,
     hash: hashPassword(DEFAULT_ADMIN_PASSWORD)
   })
 }
 
-export function authenticateUser({ login, password }) {
+export async function authenticateUser({ login, password }) {
   if (!login || !password) {
     return null
   }
 
-  const user = findByLogin(login)
+  const user = await findByLogin(login)
 
   if (!user || !verifyPassword(password, user.hash)) {
     return null
   }
 
   if (shouldRehashPassword(user.hash)) {
-    updatePasswordHash(user.uuid, hashPassword(password))
+    await updatePasswordHash(user.uuid, hashPassword(password))
   }
 
   const token = signToken({
@@ -65,17 +61,17 @@ export function authenticateUser({ login, password }) {
   }
 }
 
-export function findUserByUuid(uuid) {
+export async function findUserByUuid(uuid) {
   if (!uuid) {
     return null
   }
 
-  return findByUuid(uuid)
+  return await findByUuid(uuid)
 }
 
-export function getUserManagementData(editUuid = null) {
-  const users = listUsers()
-  const editUser = editUuid ? findByUuid(editUuid) : null
+export async function getUserManagementData(editUuid = null) {
+  const users = await listUsers()
+  const editUser = editUuid ? await findByUuid(editUuid) : null
 
   return {
     users,
@@ -83,7 +79,7 @@ export function getUserManagementData(editUuid = null) {
   }
 }
 
-export function createSystemUser({ login, password }) {
+export async function createSystemUser({ login, password }) {
   const normalizedLogin = normalizeLogin(login)
 
   if (!normalizedLogin || !password) {
@@ -94,7 +90,7 @@ export function createSystemUser({ login, password }) {
   }
 
   try {
-    createUser({
+    await createUser({
       login: normalizedLogin,
       hash: hashPassword(password)
     })
@@ -115,8 +111,8 @@ export function createSystemUser({ login, password }) {
   }
 }
 
-export function updateSystemUser({ uuid, login, password }) {
-  const currentUser = findAuthByUuid(uuid)
+export async function updateSystemUser({ uuid, login, password }) {
+  const currentUser = await findAuthByUuid(uuid)
   const normalizedLogin = normalizeLogin(login)
   const nextPassword = password?.trim()
 
@@ -135,7 +131,7 @@ export function updateSystemUser({ uuid, login, password }) {
   }
 
   try {
-    updateUser({
+    await updateUser({
       uuid,
       login: normalizedLogin,
       hash: nextPassword ? hashPassword(nextPassword) : null
@@ -157,8 +153,8 @@ export function updateSystemUser({ uuid, login, password }) {
   }
 }
 
-export function deleteSystemUser({ uuid, currentUserUuid }) {
-  const user = findByUuid(uuid)
+export async function deleteSystemUser({ uuid, currentUserUuid }) {
+  const user = await findByUuid(uuid)
 
   if (!user) {
     return {
@@ -174,14 +170,14 @@ export function deleteSystemUser({ uuid, currentUserUuid }) {
     }
   }
 
-  if (countUsers() <= 1) {
+  if (await countUsers() <= 1) {
     return {
       ok: false,
       message: 'Não é possível apagar o último usuário do sistema.'
     }
   }
 
-  deleteUser(uuid)
+  await deleteUser(uuid)
 
   return {
     ok: true,

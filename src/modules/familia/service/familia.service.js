@@ -1,3 +1,4 @@
+import { isUniqueConstraintError } from '../../../configs/db.config.js'
 import {
   countActivePessoasByFamilia,
   findFamiliaByCodigo,
@@ -59,11 +60,6 @@ function isUnderAge(value = '') {
   }
 
   return age < 18
-}
-
-function isUniqueConstraintError(error) {
-  return error?.code === 'ERR_SQLITE_CONSTRAINT_UNIQUE'
-    || error?.message?.includes('UNIQUE constraint failed')
 }
 
 export function buildFamiliaFromForm(body) {
@@ -137,20 +133,22 @@ export function buildFamiliaEditFromForm(body) {
       siafi: body.siafi?.trim() ?? '',
       referencia: body.referencia?.trim() ?? ''
     },
-    familiares: ids.map((id, index) => ({
-      id: Number(id),
-      responsavelFamiliar: index === 0,
-      nomeCompleto: nomes[index]?.trim() ?? '',
-      cpf: cpfs[index]?.trim() ?? '',
-      nascimento: normalizeDate(nascimentos[index]),
-      menor: isUnderAge(nascimentos[index])
-    }))
+    familiares: nomes
+      .map((nomeCompleto, index) => ({
+        id: ids[index] ? Number(ids[index]) : null,
+        responsavelFamiliar: index === 0,
+        nomeCompleto: nomeCompleto?.trim() ?? '',
+        cpf: cpfs[index]?.trim() ?? '',
+        nascimento: normalizeDate(nascimentos[index]),
+        menor: isUnderAge(nascimentos[index])
+      }))
+      .filter((familiar) => familiar.id || familiar.nomeCompleto || familiar.cpf || familiar.nascimento)
   }
 }
 
-export function cadastrarFamilia(cadastro) {
+export async function cadastrarFamilia(cadastro) {
   try {
-    const saved = saveFamilia(cadastro)
+    const saved = await saveFamilia(cadastro)
 
     return {
       ok: true,
@@ -169,17 +167,17 @@ export function cadastrarFamilia(cadastro) {
   }
 }
 
-export function consultarFamilias(search = '') {
-  return listFamilias(search)
+export async function consultarFamilias(search = '') {
+  return await listFamilias(search)
 }
 
-export function obterFamilia(codigoFamiliar) {
-  return findFamiliaByCodigo(onlyNumbers(codigoFamiliar))
+export async function obterFamilia(codigoFamiliar) {
+  return await findFamiliaByCodigo(onlyNumbers(codigoFamiliar))
 }
 
-export function editarFamilia(codigoAtual, cadastro) {
+export async function editarFamilia(codigoAtual, cadastro) {
   const hasInvalidFamiliar = cadastro.familiares.some((familiar) => {
-    return !familiar.id || !familiar.nomeCompleto || !familiar.cpf || !familiar.nascimento
+    return !familiar.nomeCompleto || !familiar.cpf || !familiar.nascimento
   })
 
   if (!cadastro.codigoFamiliar || !cadastro.dataEntrevista || !cadastro.folhaResumo || !cadastro.telefoneResponsavel || hasInvalidFamiliar) {
@@ -190,7 +188,7 @@ export function editarFamilia(codigoAtual, cadastro) {
   }
 
   try {
-    const familia = updateFamilia(onlyNumbers(codigoAtual), cadastro)
+    const familia = await updateFamilia(onlyNumbers(codigoAtual), cadastro)
 
     if (!familia) {
       return {
@@ -216,17 +214,17 @@ export function editarFamilia(codigoAtual, cadastro) {
   }
 }
 
-export function inativarPessoaDaFamilia({ codigoFamiliar, idPessoa }) {
+export async function inativarPessoaDaFamilia({ codigoFamiliar, idPessoa }) {
   const codigo = onlyNumbers(codigoFamiliar)
 
-  if (countActivePessoasByFamilia(codigo) <= 1) {
+  if (await countActivePessoasByFamilia(codigo) <= 1) {
     return {
       ok: false,
       message: 'Não é possível inativar a última pessoa ativa da família.'
     }
   }
 
-  inactivatePessoa(Number(idPessoa))
+  await inactivatePessoa(Number(idPessoa))
 
   return {
     ok: true,

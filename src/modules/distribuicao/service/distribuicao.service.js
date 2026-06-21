@@ -1,7 +1,7 @@
 import {
   createDistribuicao,
   findCadastroAtivoById,
-  findDistribuicaoByCadastro,
+  findDistribuicaoByCadastroAndData,
   findProjetoAtivoById,
   listParticipantesDistribuicao,
   listProjetosAtivos
@@ -15,12 +15,13 @@ function normalizeDate(value = '') {
   return String(value).trim()
 }
 
-export function listarProjetosParaDistribuicao() {
-  return listProjetosAtivos()
+export async function listarProjetosParaDistribuicao() {
+  return await listProjetosAtivos()
 }
 
-export function obterDistribuicaoDoProjeto(idProjeto) {
-  const projeto = findProjetoAtivoById(Number(idProjeto))
+export async function obterDistribuicaoDoProjeto(idProjeto, data = today()) {
+  const projeto = await findProjetoAtivoById(Number(idProjeto))
+  const dataSelecionada = normalizeDate(data) || today()
 
   if (!projeto) {
     return null
@@ -28,13 +29,13 @@ export function obterDistribuicaoDoProjeto(idProjeto) {
 
   return {
     projeto,
-    participantes: listParticipantesDistribuicao(projeto.id),
-    dataAtual: today()
+    participantes: await listParticipantesDistribuicao(projeto.id, dataSelecionada),
+    dataSelecionada
   }
 }
 
-export function registrarDistribuicao({ idCadastro, data }) {
-  const cadastro = findCadastroAtivoById(Number(idCadastro))
+export async function registrarDistribuicao({ idCadastro, data }) {
+  const cadastro = await findCadastroAtivoById(Number(idCadastro))
 
   if (!cadastro) {
     return {
@@ -43,16 +44,18 @@ export function registrarDistribuicao({ idCadastro, data }) {
     }
   }
 
-  if (findDistribuicaoByCadastro(cadastro.id)) {
+  const dataDistribuicao = normalizeDate(data) || today()
+
+  if (await findDistribuicaoByCadastroAndData({ idCadastro: cadastro.id, data: dataDistribuicao })) {
     return {
       ok: false,
-      message: 'A retirada desse participante já foi registrada.'
+      message: 'A retirada desse participante já foi registrada nesta data.',
+      idProjeto: cadastro.idProjeto,
+      data: dataDistribuicao
     }
   }
 
-  const dataDistribuicao = normalizeDate(data) || today()
-
-  createDistribuicao({
+  await createDistribuicao({
     idCadastro: cadastro.id,
     data: dataDistribuicao
   })
@@ -60,6 +63,7 @@ export function registrarDistribuicao({ idCadastro, data }) {
   return {
     ok: true,
     message: 'Retirada registrada com sucesso.',
-    idProjeto: cadastro.idProjeto
+    idProjeto: cadastro.idProjeto,
+    data: dataDistribuicao
   }
 }

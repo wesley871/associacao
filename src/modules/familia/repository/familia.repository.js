@@ -1,20 +1,7 @@
 import db from '../../../configs/db.config.js'
 
-function runInTransaction(callback) {
-  db.exec('BEGIN')
-
-  try {
-    const result = callback()
-    db.exec('COMMIT')
-    return result
-  } catch (error) {
-    db.exec('ROLLBACK')
-    throw error
-  }
-}
-
-function insertEndereco(endereco) {
-  const result = db.prepare(`
+async function insertEndereco(conn, endereco) {
+  const result = await conn.run(`
     INSERT INTO Endereco (
       cep,
       logradouro,
@@ -32,7 +19,8 @@ function insertEndereco(endereco) {
       descricao
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+    RETURNING id
+  `, [
     endereco.cep,
     endereco.logradouro || [endereco.tipo, endereco.nome].filter(Boolean).join(' '),
     endereco.numero,
@@ -47,13 +35,13 @@ function insertEndereco(endereco) {
     endereco.ddd,
     endereco.siafi,
     endereco.referencia
-  )
+  ])
 
   return Number(result.lastInsertRowid)
 }
 
-function insertPessoa(cadastro, familiar) {
-  const result = db.prepare(`
+async function insertPessoa(conn, cadastro, familiar) {
+  const result = await conn.run(`
     INSERT INTO Pessoa (
       codigo_familiar,
       nome,
@@ -65,7 +53,8 @@ function insertPessoa(cadastro, familiar) {
       menor
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+    RETURNING id
+  `, [
     cadastro.codigoFamiliar,
     familiar.nomeCompleto,
     familiar.cpf,
@@ -74,81 +63,84 @@ function insertPessoa(cadastro, familiar) {
     cadastro.folhaResumo,
     familiar.responsavelFamiliar ? 1 : 0,
     familiar.menor ? 1 : 0
-  )
+  ])
 
   return Number(result.lastInsertRowid)
 }
 
-function linkPessoaEndereco(idPessoa, idEndereco) {
-  db.prepare(`
+async function linkPessoaEndereco(conn, idPessoa, idEndereco) {
+  await conn.run(`
     INSERT INTO Pessoa_Endereco (id_pessoa, id_endereco)
     VALUES (?, ?)
-  `).run(idPessoa, idEndereco)
+  `, [idPessoa, idEndereco])
 }
 
-function insertTelefoneResponsavel(idPessoa, telefone = '') {
+async function insertTelefoneResponsavel(conn, idPessoa, telefone = '') {
   if (!telefone) {
     return null
   }
 
-  const result = db.prepare(`
+  const result = await conn.run(`
     INSERT INTO Telefone (descricao, numero, principal, whatsapp, ativo)
     VALUES (?, ?, 1, 1, 1)
-  `).run('Responsável familiar', telefone)
+    RETURNING id
+  `, ['Responsável familiar', telefone])
   const idTelefone = Number(result.lastInsertRowid)
 
-  db.prepare(`
+  await conn.run(`
     INSERT INTO Pessoa_Contato (id_pessoa, id_telefone)
     VALUES (?, ?)
-  `).run(idPessoa, idTelefone)
+  `, [idPessoa, idTelefone])
 
   return idTelefone
 }
 
-function findTelefoneResponsavel(idPessoa) {
-  return db.prepare(`
+async function findTelefoneResponsavel(conn, idPessoa) {
+  return conn.get(`
     SELECT t.id, t.numero
     FROM Telefone t
     INNER JOIN Pessoa_Contato pc ON pc.id_telefone = t.id
     WHERE pc.id_pessoa = ? AND t.ativo = 1
     ORDER BY t.principal DESC, t.id ASC
     LIMIT 1
-  `).get(idPessoa)
+  `, [idPessoa])
 }
 
-function upsertTelefoneResponsavel(idPessoa, telefone = '') {
-  const currentTelefone = findTelefoneResponsavel(idPessoa)
+async function upsertTelefoneResponsavel(conn, idPessoa, telefone = '') {
+  const currentTelefone = await findTelefoneResponsavel(conn, idPessoa)
 
   if (currentTelefone) {
-    db.prepare(`
+    await conn.run(`
       UPDATE Telefone
       SET numero = ?
       WHERE id = ?
-    `).run(telefone, currentTelefone.id)
+    `, [telefone, currentTelefone.id])
 
     return currentTelefone.id
   }
 
-  return insertTelefoneResponsavel(idPessoa, telefone)
+  return insertTelefoneResponsavel(conn, idPessoa, telefone)
 }
 
-export function saveFamilia(cadastro) {
-  return runInTransaction(() => {
-    const idEndereco = insertEndereco(cadastro.endereco)
-    const pessoas = cadastro.familiares.map((familiar) => {
-      const idPessoa = insertPessoa(cadastro, familiar)
-      linkPessoaEndereco(idPessoa, idEndereco)
+export async function saveFamilia(cadastro) {
+  return db.transaction(async (conn) => {
+    const idEndereco = await insertEndereco(conn, cadastro.endereco)
+    const pessoas = []
+
+    for (const familiar of cadastro.familiares) {
+      const idPessoa = await insertPessoa(conn, cadastro, familiar)
+      await linkPessoaEndereco(conn, idPessoa, idEndereco)
 
       if (familiar.responsavelFamiliar) {
-        insertTelefoneResponsavel(idPessoa, cadastro.telefoneResponsavel)
+        await insertTelefoneResponsavel(conn, idPessoa, cadastro.telefoneResponsavel)
       }
 
-      return {
+      pessoas.push({
         id: idPessoa,
         nome: familiar.nomeCompleto,
         cpf: familiar.cpf
-      }
-    })
+      })
+    }
 
     return {
       idEndereco,
@@ -157,17 +149,17 @@ export function saveFamilia(cadastro) {
   })
 }
 
-export function listFamilias(search = '') {
+export async function listFamilias(search = '') {
   const term = `%${search.trim()}%`
 
-  return db.prepare(`
+  return db.all(`
     SELECT
-      p.codigo_familiar AS codigoFamiliar,
+      p.codigo_familiar AS "codigoFamiliar",
       MAX(CASE WHEN p.responsavel_familiar = 1 THEN p.nome ELSE NULL END) AS responsavel,
-      MAX(p.data_cadunico) AS dataEntrevista,
-      MAX(p.folha_resumo) AS folhaResumo,
-      COUNT(*) AS totalPessoas,
-      SUM(CASE WHEN p.ativo = 1 THEN 1 ELSE 0 END) AS pessoasAtivas
+      MAX(p.data_cadunico) AS "dataEntrevista",
+      MAX(p.folha_resumo) AS "folhaResumo",
+      COUNT(*) AS "totalPessoas",
+      SUM(CASE WHEN p.ativo = 1 THEN 1 ELSE 0 END) AS "pessoasAtivas"
     FROM Pessoa p
     WHERE p.codigo_familiar IN (
       SELECT DISTINCT codigo_familiar
@@ -176,32 +168,32 @@ export function listFamilias(search = '') {
     )
     GROUP BY p.codigo_familiar
     ORDER BY p.codigo_familiar DESC
-  `).all(term, term)
+  `, [term, term])
 }
 
-export function findFamiliaByCodigo(codigoFamiliar) {
-  const pessoas = db.prepare(`
+export async function findFamiliaByCodigo(codigoFamiliar, conn = db) {
+  const pessoas = await conn.all(`
     SELECT
       id,
-      codigo_familiar AS codigoFamiliar,
+      codigo_familiar AS "codigoFamiliar",
       nome,
       cpf,
       nascimento,
-      data_cadunico AS dataEntrevista,
-      folha_resumo AS folhaResumo,
-      responsavel_familiar AS responsavelFamiliar,
+      data_cadunico AS "dataEntrevista",
+      folha_resumo AS "folhaResumo",
+      responsavel_familiar AS "responsavelFamiliar",
       menor,
       ativo
     FROM Pessoa
     WHERE codigo_familiar = ?
     ORDER BY responsavel_familiar DESC, id ASC
-  `).all(codigoFamiliar)
+  `, [codigoFamiliar])
 
   if (pessoas.length === 0) {
     return null
   }
 
-  const endereco = db.prepare(`
+  const endereco = await conn.get(`
     SELECT
       e.id,
       e.cep,
@@ -225,10 +217,10 @@ export function findFamiliaByCodigo(codigoFamiliar) {
     WHERE p.codigo_familiar = ?
     ORDER BY e.id ASC
     LIMIT 1
-  `).get(codigoFamiliar)
+  `, [codigoFamiliar])
   const responsavel = pessoas.find((pessoa) => pessoa.responsavelFamiliar)
   const telefoneResponsavel = responsavel
-    ? findTelefoneResponsavel(responsavel.id)?.numero ?? ''
+    ? (await findTelefoneResponsavel(conn, responsavel.id))?.numero ?? ''
     : ''
 
   return {
@@ -241,12 +233,12 @@ export function findFamiliaByCodigo(codigoFamiliar) {
   }
 }
 
-function updateEndereco(idEndereco, endereco) {
+async function updateEndereco(conn, idEndereco, endereco) {
   if (!idEndereco) {
     return
   }
 
-  db.prepare(`
+  await conn.run(`
     UPDATE Endereco
     SET
       cep = ?,
@@ -264,7 +256,7 @@ function updateEndereco(idEndereco, endereco) {
       siafi = ?,
       descricao = ?
     WHERE id = ?
-  `).run(
+  `, [
     endereco.cep,
     endereco.logradouro,
     endereco.numero,
@@ -280,11 +272,11 @@ function updateEndereco(idEndereco, endereco) {
     endereco.siafi,
     endereco.referencia,
     idEndereco
-  )
+  ])
 }
 
-function updatePessoa(cadastro, pessoa) {
-  db.prepare(`
+async function updatePessoa(conn, cadastro, pessoa) {
+  await conn.run(`
     UPDATE Pessoa
     SET
       codigo_familiar = ?,
@@ -296,7 +288,7 @@ function updatePessoa(cadastro, pessoa) {
       responsavel_familiar = ?,
       menor = ?
     WHERE id = ?
-  `).run(
+  `, [
     cadastro.codigoFamiliar,
     pessoa.nomeCompleto,
     pessoa.cpf,
@@ -306,41 +298,60 @@ function updatePessoa(cadastro, pessoa) {
     pessoa.responsavelFamiliar ? 1 : 0,
     pessoa.menor ? 1 : 0,
     pessoa.id
-  )
+  ])
 }
 
-export function updateFamilia(codigoAtual, cadastro) {
-  return runInTransaction(() => {
-    const familiaAtual = findFamiliaByCodigo(codigoAtual)
+export async function updateFamilia(codigoAtual, cadastro) {
+  return db.transaction(async (conn) => {
+    const familiaAtual = await findFamiliaByCodigo(codigoAtual, conn)
 
     if (!familiaAtual) {
       return null
     }
 
-    updateEndereco(familiaAtual.endereco?.id, cadastro.endereco)
-    cadastro.familiares.forEach((pessoa) => updatePessoa(cadastro, pessoa))
+    const idEndereco = familiaAtual.endereco?.id
+
+    await updateEndereco(conn, idEndereco, cadastro.endereco)
+
+    for (const pessoa of cadastro.familiares) {
+      if (pessoa.id) {
+        await updatePessoa(conn, cadastro, pessoa)
+        continue
+      }
+
+      const idPessoa = await insertPessoa(conn, cadastro, pessoa)
+
+      if (idEndereco) {
+        await linkPessoaEndereco(conn, idPessoa, idEndereco)
+      }
+
+      pessoa.id = idPessoa
+    }
+
     const responsavel = cadastro.familiares.find((pessoa) => pessoa.responsavelFamiliar)
 
     if (responsavel) {
-      upsertTelefoneResponsavel(responsavel.id, cadastro.telefoneResponsavel)
+      await upsertTelefoneResponsavel(conn, responsavel.id, cadastro.telefoneResponsavel)
     }
 
-    return findFamiliaByCodigo(cadastro.codigoFamiliar)
+    return findFamiliaByCodigo(cadastro.codigoFamiliar, conn)
   })
 }
 
-export function countActivePessoasByFamilia(codigoFamiliar) {
-  return db.prepare(`
+export async function countActivePessoasByFamilia(codigoFamiliar) {
+  const row = await db.get(`
     SELECT COUNT(*) AS total
     FROM Pessoa
     WHERE codigo_familiar = ? AND ativo = 1
-  `).get(codigoFamiliar).total
+  `, [codigoFamiliar])
+
+  return Number(row.total)
 }
 
-export function inactivatePessoa(idPessoa) {
-  return db.prepare(`
+export async function inactivatePessoa(idPessoa) {
+  return db.run(`
     UPDATE Pessoa
     SET ativo = 0
     WHERE id = ?
-  `).run(idPessoa)
+  `, [idPessoa])
 }

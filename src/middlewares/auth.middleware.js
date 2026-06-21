@@ -29,7 +29,7 @@ function wantsJson(req) {
   return req.xhr || req.headers.accept?.includes('application/json')
 }
 
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const payload = verifyToken(getToken(req))
 
   if (!payload) {
@@ -42,7 +42,7 @@ export function requireAuth(req, res, next) {
     return
   }
 
-  const user = findUserByUuid(payload.sub)
+  const user = await findUserByUuid(payload.sub)
 
   if (!user) {
     if (wantsJson(req)) {
