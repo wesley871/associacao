@@ -42,7 +42,7 @@ export async function requireAuth(req, res, next) {
     return
   }
 
-  const user = await findUserByUuid(payload.sub)
+  const user = await findUserByUuid(payload.sub, payload.login)
 
   if (!user) {
     if (wantsJson(req)) {

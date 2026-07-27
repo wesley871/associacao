@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultar pré-cadastros</title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/familias.css">
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="families-page">
+        <header class="families-header">
+            <div>
+                <h1>Pré-cadastros</h1>
+                <p>Busque registros pendentes e complete os dados faltantes.</p>
+            </div>
+            <a class="primary-link" href="/pre-cadastro">Novo pré-cadastro</a>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <section class="families-panel">
+            <form class="search-form" action="/pre-cadastros" method="get">
+                <label for="busca">Nome, CPF, NIS ou CEP</label>
+                <div class="search-row">
+                    <input type="search" name="busca" id="busca" value="<%= search %>" placeholder="Digite um termo para buscar">
+                    <button type="submit">Buscar</button>
+                    <% if (search) { %>
+                        <a href="/pre-cadastros">Limpar</a>
+                    <% } %>
+                </div>
+            </form>
+        </section>
+
+        <section class="families-panel">
+            <h2>Registros pendentes</h2>
+
+            <div class="families-table-wrapper">
+                <table class="families-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CPF</th>
+                            <th>NIS</th>
+                            <th>CEP</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (preCadastros.length === 0) { %>
+                            <tr>
+                                <td colspan="6">Nenhum pré-cadastro pendente encontrado.</td>
+                            </tr>
+                        <% } %>
+
+                        <% preCadastros.forEach((preCadastro) => { %>
+                            <tr>
+                                <td><%= preCadastro.pessoa?.nome || '-' %></td>
+                                <td><%= preCadastro.pessoa?.cpf || '-' %></td>
+                                <td><%= preCadastro.pessoa?.nis || '-' %></td>
+                                <td><%= preCadastro.endereco?.cep || '-' %></td>
+                                <td><span class="person-badge person-badge-muted"><%= preCadastro.status ?? 'pendente' %></span></td>
+                                <td>
+                                    <a class="table-link" href="/pre-cadastros/<%= preCadastro.id %>">Completar</a>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

@@ -20,7 +20,7 @@ export async function listarProjetosParaDistribuicao() {
 }
 
 export async function obterDistribuicaoDoProjeto(idProjeto, data = today()) {
-  const projeto = await findProjetoAtivoById(Number(idProjeto))
+  const projeto = await findProjetoAtivoById(idProjeto)
   const dataSelecionada = normalizeDate(data) || today()
 
   if (!projeto) {
@@ -35,7 +35,7 @@ export async function obterDistribuicaoDoProjeto(idProjeto, data = today()) {
 }
 
 export async function registrarDistribuicao({ idCadastro, data }) {
-  const cadastro = await findCadastroAtivoById(Number(idCadastro))
+  const cadastro = await findCadastroAtivoById(idCadastro)
 
   if (!cadastro) {
     return {

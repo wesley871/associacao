@@ -135,7 +135,7 @@ export function buildFamiliaEditFromForm(body) {
     },
     familiares: nomes
       .map((nomeCompleto, index) => ({
-        id: ids[index] ? Number(ids[index]) : null,
+        id: ids[index] || null,
         responsavelFamiliar: index === 0,
         nomeCompleto: nomeCompleto?.trim() ?? '',
         cpf: cpfs[index]?.trim() ?? '',
@@ -224,7 +224,7 @@ export async function inativarPessoaDaFamilia({ codigoFamiliar, idPessoa }) {
     }
   }
 
-  await inactivatePessoa(Number(idPessoa))
+  await inactivatePessoa(idPessoa)
 
   return {
     ok: true,

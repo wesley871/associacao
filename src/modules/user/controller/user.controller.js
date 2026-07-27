@@ -55,7 +55,7 @@ export function logout(req, res) {
 }
 
 export async function renderUserSettings(req, res) {
-  const { users, editUser } = await getUserManagementData(req.query.edit)
+  const { users, editUser } = await getUserManagementData(req.query.edit, req.user)
 
   res.render('configuracoes-usuarios', {
     users,

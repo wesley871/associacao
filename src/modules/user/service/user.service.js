@@ -1,77 +1,70 @@
-import { hashPassword, shouldRehashPassword, verifyPassword } from '../../../utils/password.util.js'
+import { signInWithEmailAndPassword } from 'firebase/auth'
 import { signToken } from '../../../utils/jwt.util.js'
-import { isUniqueConstraintError } from '../../../configs/db.config.js'
-import {
-  countUsers,
-  createUser,
-  deleteUser,
-  findAuthByUuid,
-  findByLogin,
-  findByUuid,
-  listUsers,
-  updateUser,
-  updatePasswordHash
-} from '../repository/user.repository.js'
+import { firebaseAuth } from '../../../utils/firebase.util.js'
 
-const DEFAULT_ADMIN_LOGIN = process.env.DEFAULT_ADMIN_LOGIN ?? 'admin'
-const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD ?? 'admin123'
+const DEFAULT_ADMIN_LOGIN = process.env.DEFAULT_ADMIN_LOGIN ?? 'admin@associacao.com.br'
 
 function normalizeLogin(login = '') {
   return login.trim()
 }
 
-export async function ensureDefaultAdmin() {
-  if (await countUsers() > 0) {
-    return null
+function buildUserFromFirebaseUser(user) {
+  return {
+    uuid: user.uid,
+    login: user.email,
+    idPessoa: null
   }
+}
 
-  return await createUser({
-    login: DEFAULT_ADMIN_LOGIN,
-    hash: hashPassword(DEFAULT_ADMIN_PASSWORD)
-  })
+export async function ensureDefaultAdmin() {
+  return null
 }
 
 export async function authenticateUser({ login, password }) {
-  if (!login || !password) {
+  const normalizedLogin = normalizeLogin(login)
+
+  if (!normalizedLogin || !password) {
     return null
   }
 
-  const user = await findByLogin(login)
+  try {
+    const credential = await signInWithEmailAndPassword(firebaseAuth, normalizedLogin, password)
+    const user = buildUserFromFirebaseUser(credential.user)
+    const token = signToken({
+      sub: user.uuid,
+      login: user.login
+    })
 
-  if (!user || !verifyPassword(password, user.hash)) {
-    return null
-  }
-
-  if (shouldRehashPassword(user.hash)) {
-    await updatePasswordHash(user.uuid, hashPassword(password))
-  }
-
-  const token = signToken({
-    sub: user.uuid,
-    login: user.login
-  })
-
-  return {
-    token,
-    user: {
-      uuid: user.uuid,
-      login: user.login,
-      idPessoa: user.idPessoa
+    return {
+      token,
+      user
     }
+  } catch {
+    return null
   }
 }
 
-export async function findUserByUuid(uuid) {
+export async function findUserByUuid(uuid, login = null) {
   if (!uuid) {
     return null
   }
 
-  return await findByUuid(uuid)
+  return {
+    uuid,
+    login: login ?? uuid,
+    idPessoa: null
+  }
 }
 
-export async function getUserManagementData(editUuid = null) {
-  const users = await listUsers()
-  const editUser = editUuid ? await findByUuid(editUuid) : null
+export async function getUserManagementData(editUuid = null, currentUser = null) {
+  const users = currentUser
+    ? [currentUser]
+    : [{
+      uuid: 'firebase-auth',
+      login: DEFAULT_ADMIN_LOGIN,
+      idPessoa: null
+    }]
+  const editUser = editUuid ? users.find((user) => user.uuid === editUuid) ?? null : null
 
   return {
     users,
@@ -79,108 +72,23 @@ export async function getUserManagementData(editUuid = null) {
   }
 }
 
-export async function createSystemUser({ login, password }) {
-  const normalizedLogin = normalizeLogin(login)
-
-  if (!normalizedLogin || !password) {
-    return {
-      ok: false,
-      message: 'Informe login e senha para cadastrar o usuário.'
-    }
-  }
-
-  try {
-    await createUser({
-      login: normalizedLogin,
-      hash: hashPassword(password)
-    })
-
-    return {
-      ok: true,
-      message: 'Usuário cadastrado com sucesso.'
-    }
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      return {
-        ok: false,
-        message: 'Já existe um usuário com esse login.'
-      }
-    }
-
-    throw error
-  }
-}
-
-export async function updateSystemUser({ uuid, login, password }) {
-  const currentUser = await findAuthByUuid(uuid)
-  const normalizedLogin = normalizeLogin(login)
-  const nextPassword = password?.trim()
-
-  if (!currentUser) {
-    return {
-      ok: false,
-      message: 'Usuário não encontrado.'
-    }
-  }
-
-  if (!normalizedLogin) {
-    return {
-      ok: false,
-      message: 'Informe o login do usuário.'
-    }
-  }
-
-  try {
-    await updateUser({
-      uuid,
-      login: normalizedLogin,
-      hash: nextPassword ? hashPassword(nextPassword) : null
-    })
-
-    return {
-      ok: true,
-      message: 'Usuário atualizado com sucesso.'
-    }
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      return {
-        ok: false,
-        message: 'Já existe um usuário com esse login.'
-      }
-    }
-
-    throw error
-  }
-}
-
-export async function deleteSystemUser({ uuid, currentUserUuid }) {
-  const user = await findByUuid(uuid)
-
-  if (!user) {
-    return {
-      ok: false,
-      message: 'Usuário não encontrado.'
-    }
-  }
-
-  if (uuid === currentUserUuid) {
-    return {
-      ok: false,
-      message: 'Você não pode apagar o usuário que está usando agora.'
-    }
-  }
-
-  if (await countUsers() <= 1) {
-    return {
-      ok: false,
-      message: 'Não é possível apagar o último usuário do sistema.'
-    }
-  }
-
-  await deleteUser(uuid)
-
+export async function createSystemUser() {
   return {
-    ok: true,
-    message: 'Usuário apagado com sucesso.'
+    ok: false,
+    message: 'Crie novos usuários pelo Firebase Authentication.'
+  }
+}
+
+export async function updateSystemUser() {
+  return {
+    ok: false,
+    message: 'Edite usuários pelo Firebase Authentication.'
+  }
+}
+
+export async function deleteSystemUser() {
+  return {
+    ok: false,
+    message: 'Apague usuários pelo Firebase Authentication.'
   }
 }

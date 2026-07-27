@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pré-cadastro</title>
+    <link rel="stylesheet" href="/css/comum.css">
+    <link rel="stylesheet" href="/css/pre-cadastro.css">
+    <script src="/js/cadastrar-familia.js" defer></script>
+</head>
+<body>
+    <%- include('../components/navbar.html') %>
+
+    <main class="pre-register-page">
+        <header class="pre-register-header">
+            <div>
+                <h1>Pré-cadastro</h1>
+                <p>Preencha os dados disponíveis para iniciar o cadastro familiar.</p>
+            </div>
+        </header>
+
+        <% if (success) { %>
+            <p class="feedback feedback-success"><%= success %></p>
+        <% } %>
+
+        <% if (error) { %>
+            <p class="feedback feedback-error"><%= error %></p>
+        <% } %>
+
+        <form class="pre-register-form" action="/pre-cadastro" method="post">
+            <section class="pre-register-panel">
+                <h2>Dados pessoais</h2>
+
+                <div class="pre-grid pre-grid-three">
+                    <label class="pre-field">
+                        <span>Nome</span>
+                        <input type="text" name="nome" value="<%= cadastro?.pessoa?.nome ?? '' %>" placeholder="Nome completo">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>CPF</span>
+                        <input type="text" name="cpf" value="<%= cadastro?.pessoa?.cpf ?? '' %>" inputmode="numeric" placeholder="12345678900">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>NIS</span>
+                        <input type="text" name="nis" value="<%= cadastro?.pessoa?.nis ?? '' %>" inputmode="numeric" placeholder="12345678900">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>Telefone</span>
+                        <input type="tel" name="telefone" value="<%= cadastro?.pessoa?.telefone ?? '' %>" inputmode="tel" placeholder="11999999999">
+                    </label>
+                </div>
+            </section>
+
+            <section class="pre-register-panel">
+                <h2>Informações familiares</h2>
+
+                <div class="pre-family-layout">
+                    <label class="pre-field pre-family-total">
+                        <span>Número de pessoas na casa</span>
+                        <input type="number" name="totalPessoas" value="<%= cadastro?.familia?.totalPessoas ?? '' %>" min="0" placeholder="1">
+                    </label>
+
+                    <div class="age-groups">
+                        <h3>Faixa etária na casa</h3>
+
+                        <div class="age-row">
+                            <strong>Homens</strong>
+                            <label class="pre-field">
+                                <span>0 a 6 anos</span>
+                                <input type="number" name="homensAte6" value="<%= cadastro?.familia?.faixaEtaria?.homens?.ate6 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                            <label class="pre-field">
+                                <span>07 a 15 anos</span>
+                                <input type="number" name="homens7a15" value="<%= cadastro?.familia?.faixaEtaria?.homens?.de7a15 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                            <label class="pre-field">
+                                <span>16 e 17 anos</span>
+                                <input type="number" name="homens16a17" value="<%= cadastro?.familia?.faixaEtaria?.homens?.de16a17 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                            <label class="pre-field">
+                                <span>18 a 64 anos</span>
+                                <input type="number" name="homens18a64" value="<%= cadastro?.familia?.faixaEtaria?.homens?.de18a64 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                            <label class="pre-field">
+                                <span>65 anos ou +</span>
+                                <input type="number" name="homens65Mais" value="<%= cadastro?.familia?.faixaEtaria?.homens?.acima65 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                        </div>
+
+                        <div class="age-row">
+                            <strong>Mulheres</strong>
+                            <label class="pre-field">
+                                <span>0 a 6 anos</span>
+                                <input type="number" name="mulheresAte6" value="<%= cadastro?.familia?.faixaEtaria?.mulheres?.ate6 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                            <label class="pre-field">
+                                <span>07 a 15 anos</span>
+                                <input type="number" name="mulheres7a15" value="<%= cadastro?.familia?.faixaEtaria?.mulheres?.de7a15 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                            <label class="pre-field">
+                                <span>16 e 17 anos</span>
+                                <input type="number" name="mulheres16a17" value="<%= cadastro?.familia?.faixaEtaria?.mulheres?.de16a17 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                            <label class="pre-field">
+                                <span>18 a 64 anos</span>
+                                <input type="number" name="mulheres18a64" value="<%= cadastro?.familia?.faixaEtaria?.mulheres?.de18a64 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                            <label class="pre-field">
+                                <span>65 anos ou +</span>
+                                <input type="number" name="mulheres65Mais" value="<%= cadastro?.familia?.faixaEtaria?.mulheres?.acima65 ?? '' %>" min="0" placeholder="0">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pre-register-panel">
+                <div class="panel-title-row">
+                    <h2>Endereço</h2>
+                    <span class="cep-status" data-cep-status></span>
+                </div>
+
+                <div class="pre-grid pre-grid-four">
+                    <label class="pre-field">
+                        <span>CEP</span>
+                        <input type="text" name="cep" id="cep" value="<%= cadastro?.endereco?.cep ?? '' %>" inputmode="numeric" autocomplete="postal-code" placeholder="01001001">
+                    </label>
+
+                    <label class="pre-field pre-field-wide">
+                        <span>Endereço</span>
+                        <input type="text" name="logradouro" id="logradouro" value="<%= cadastro?.endereco?.logradouro ?? '' %>" placeholder="Praça da Sé">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>Número</span>
+                        <input type="text" name="numero" value="<%= cadastro?.endereco?.numero ?? '' %>" placeholder="0001">
+                    </label>
+
+                    <label class="pre-field pre-field-wide">
+                        <span>Complemento</span>
+                        <input type="text" name="complemento" id="complemento" value="<%= cadastro?.endereco?.complemento ?? '' %>" placeholder="Bloco, apto, casa...">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>Unidade</span>
+                        <input type="text" name="unidade" id="unidade" value="<%= cadastro?.endereco?.unidade ?? '' %>">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>Bairro</span>
+                        <input type="text" name="bairro" id="bairro" value="<%= cadastro?.endereco?.bairro ?? '' %>">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>Cidade</span>
+                        <input type="text" name="localidade" id="localidade" value="<%= cadastro?.endereco?.localidade ?? '' %>">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>UF</span>
+                        <input type="text" name="uf" id="uf" value="<%= cadastro?.endereco?.uf ?? '' %>" maxlength="2">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>Estado</span>
+                        <input type="text" name="estado" id="estado" value="<%= cadastro?.endereco?.estado ?? '' %>">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>Região</span>
+                        <input type="text" name="regiao" id="regiao" value="<%= cadastro?.endereco?.regiao ?? '' %>">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>IBGE</span>
+                        <input type="text" name="ibge" id="ibge" value="<%= cadastro?.endereco?.ibge ?? '' %>" inputmode="numeric">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>GIA</span>
+                        <input type="text" name="gia" id="gia" value="<%= cadastro?.endereco?.gia ?? '' %>" inputmode="numeric">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>DDD</span>
+                        <input type="text" name="ddd" id="ddd" value="<%= cadastro?.endereco?.ddd ?? '' %>" inputmode="numeric">
+                    </label>
+
+                    <label class="pre-field">
+                        <span>SIAFI</span>
+                        <input type="text" name="siafi" id="siafi" value="<%= cadastro?.endereco?.siafi ?? '' %>" inputmode="numeric">
+                    </label>
+
+                    <label class="pre-field pre-field-wide">
+                        <span>Referência</span>
+                        <input type="text" name="referencia" value="<%= cadastro?.endereco?.referencia ?? '' %>">
+                    </label>
+                </div>
+            </section>
+
+            <div class="pre-register-actions">
+                <button type="submit">Salvar pré-cadastro</button>
+            </div>
+        </form>
+    </main>
+</body>
+</html>

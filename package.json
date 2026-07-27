@@ -15,10 +15,10 @@
     "bcryptjs": "^3.0.3",
     "ejs": "^6.0.1",
     "express": "^5.2.1",
+    "firebase": "^12.16.0",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
-    "pg": "^8.22.0",
     "tesseract.js": "^7.0.0"
   }
 }
